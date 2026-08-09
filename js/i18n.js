@@ -209,10 +209,10 @@ const I18N = (function () {
     return String(s).replace(/[0-9]/g, function (d) { return UR_DIGITS[d]; });
   }
 
-  function get() { return localStorage.getItem('mdm_lang') || 'en'; }
+  function get() { try { return localStorage.getItem('mdm_lang') || 'en'; } catch (e) { return 'en'; } }
 
   function set(lang) {
-    localStorage.setItem('mdm_lang', lang);
+    try { localStorage.setItem('mdm_lang', lang); } catch (e) {}
     document.documentElement.setAttribute('lang', lang);
     document.documentElement.setAttribute('dir', lang === 'ur' ? 'rtl' : 'ltr');
   }

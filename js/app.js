@@ -77,7 +77,7 @@
       route();
     } else if (a === 'toggle-theme') {
       const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('mdm_theme', cur);
+      try { localStorage.setItem('mdm_theme', cur); } catch (e) {}
       applyLangTheme();
       route();
     } else if (a === 'logout') {
@@ -104,7 +104,9 @@
   function applyLangTheme() {
     document.documentElement.setAttribute('lang', I18N.get());
     document.documentElement.setAttribute('dir', I18N.get() === 'ur' ? 'rtl' : 'ltr');
-    document.documentElement.setAttribute('data-theme', localStorage.getItem('mdm_theme') || 'light');
+    let theme = 'light';
+    try { theme = localStorage.getItem('mdm_theme') || 'light'; } catch (e) {}
+    document.documentElement.setAttribute('data-theme', theme);
   }
 
   /* ---------- main render ---------- */
@@ -643,6 +645,9 @@
     const sentKey = 'mdm_sent_' + session.id + '_' + today;
     let sentList = [];
     try { sentList = JSON.parse(localStorage.getItem(sentKey)) || []; } catch (e) {}
+    const storeSent = function () {
+      try { localStorage.setItem(sentKey, JSON.stringify(sentList)); } catch (e) {}
+    };
 
     app.innerHTML = '' +
       topbar(true) +
@@ -691,7 +696,7 @@
       const url = 'https://web.whatsapp.com/send?phone=' + phone + '&text=' + encodeURIComponent(waMessage(item.s, item.rep));
       window.open(url, '_blank');
       if (sentList.indexOf(id) < 0) sentList.push(id);
-      localStorage.setItem(sentKey, JSON.stringify(sentList));
+      storeSent();
       btn.closest('.msg-card').classList.add('sent');
     };
   }

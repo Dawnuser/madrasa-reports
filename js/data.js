@@ -7,6 +7,7 @@
 const DB = (function () {
   const KEY = 'mdm_db_v1';
   const SESSION_KEY = 'mdm_session';
+  let memSession = null;
 
   const USERS = {
     qari1: { id: 'qari1', name: 'Qari Sahab 1', role: 'qari', classId: 'c1', pass: 'qari123' },
@@ -97,7 +98,7 @@ const DB = (function () {
   }
 
   function save(db) {
-    localStorage.setItem(KEY, JSON.stringify(db));
+    try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {}
   }
 
   /* ---------- date helpers ---------- */
@@ -121,7 +122,8 @@ const DB = (function () {
       const u = USERS[String(username).trim().toLowerCase()];
       if (u && u.pass === password) {
         const session = { id: u.id, name: u.name, role: u.role, classId: u.classId };
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch (e) {}
+        memSession = session;
         return session;
       }
       return null;
@@ -129,10 +131,14 @@ const DB = (function () {
     getSession() {
       try {
         const raw = sessionStorage.getItem(SESSION_KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch (e) { return null; }
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return memSession;
     },
-    logout() { sessionStorage.removeItem(SESSION_KEY); },
+    logout() {
+      memSession = null;
+      try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+    },
 
     /* classes & students */
     async getClasses() { return load().classes; },

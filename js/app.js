@@ -688,7 +688,7 @@
       const phone = btn.getAttribute('data-phone');
       const item = done.find(function (i) { return i.s.id === id; });
       if (!item) return;
-      const url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(waMessage(item.s, item.rep));
+      const url = 'https://web.whatsapp.com/send?phone=' + phone + '&text=' + encodeURIComponent(waMessage(item.s, item.rep));
       window.open(url, '_blank');
       if (sentList.indexOf(id) < 0) sentList.push(id);
       localStorage.setItem(sentKey, JSON.stringify(sentList));

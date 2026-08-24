@@ -273,6 +273,18 @@
     const t = I18N.t;
     if (session.role === 'principal') { redirect('principal'); return; }
     const cls = await DB.getClass(session.classId);
+    if (!cls) {
+      app.innerHTML = '' +
+        topbar(false) +
+        '<main class="app-main">' +
+          '<div class="greet">' +
+            '<span class="eyebrow">' + t('welcome') + '</span>' +
+            '<h1>' + esc(session.name) + '</h1>' +
+          '</div>' +
+          '<div class="empty-note">' + t('noClassAssigned') + '</div>' +
+        '</main>';
+      return;
+    }
     const students = await DB.getStudents(session.classId);
     const today = todayDs();
     const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), today);
@@ -473,7 +485,8 @@
         toast(I18N.get() === 'ur' ? 'سبق کے لیے صفحات یا سطریں منتخب کریں' : 'Select pages or lines for Sabaq.');
         return;
       }
-      DB.saveReport(sid, ds, rep2).then(function () {
+      DB.saveReport(sid, ds, rep2).then(function (res) {
+        if (res && res.ok === false) { toast(t('saveFailed')); return; }
         draft = null;
         toast(t('saved'));
         nav('dashboard');
@@ -1013,7 +1026,8 @@
       const row = btn.closest('.fee-row');
       const sid = row.getAttribute('data-sid');
       const paid = btn.getAttribute('data-v') === '1';
-      DB.markFee(sid, ym, paid, session.id).then(function () {
+      DB.markFee(sid, ym, paid, session.id).then(function (res) {
+        if (res && res.ok === false) { toast(t('saveFailed')); return; }
         paintFeeBtns(row, paid, t);
         paidCount += paid ? 1 : -1;
         const pc = document.getElementById('paid-count');
@@ -1107,7 +1121,8 @@
       const tr = btn.closest('tr');
       const sid = tr.getAttribute('data-sid');
       const paid = btn.getAttribute('data-v') === '1';
-      DB.markFee(sid, ym, paid, session.id).then(function () {
+      DB.markFee(sid, ym, paid, session.id).then(function (res) {
+        if (res && res.ok === false) { toast(t('saveFailed')); return; }
         paintFeeBtns(tr, paid, t);
         toast(paid ? t('markPaid') : t('markUnpaid'));
       });
@@ -1408,7 +1423,8 @@
         sabaqDays: parseInt(document.getElementById('w-sabaqDays').value, 10) || 0,
         manzilComment: document.getElementById('w-manzilComment').value.trim(),
         bigComment: document.getElementById('w-bigComment').value.trim()
-      }).then(function () {
+      }).then(function (res) {
+        if (res && res.ok === false) { toast(t('saveFailed')); return; }
         toast(t('savedReport'));
         renderWeekly(session, sid);
       });
@@ -1477,7 +1493,8 @@
         absent: absent,
         total: total,
         comment: document.getElementById('m-comment').value.trim()
-      }).then(function () {
+      }).then(function (res) {
+        if (res && res.ok === false) { toast(t('saveFailed')); return; }
         toast(t('savedReport'));
         renderMonthly(session, sid);
       });

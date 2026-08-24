@@ -226,8 +226,8 @@ const DB = (function () {
         (repRows || []).forEach(function (r) { reports[r.student_id + '|' + dstr(new Date(r.date))] = mapReport(r); });
         const { data: fsRows } = await c.from('fee_settings').select('*').in('student_id', studentIds);
         const { data: fpRows } = await c.from('fee_payments').select('*').in('student_id', studentIds);
-        fsRows.forEach(function (f) { if (!fees[f.student_id]) fees[f.student_id] = { amount: f.amount, payments: {} }; });
-        fpRows.forEach(function (p) {
+        (fsRows || []).forEach(function (f) { if (!fees[f.student_id]) fees[f.student_id] = { amount: f.amount, payments: {} }; });
+        (fpRows || []).forEach(function (p) {
           const ym = ymStr(new Date(p.month));
           if (!fees[p.student_id]) fees[p.student_id] = { amount: null, payments: {} };
           fees[p.student_id].payments[ym] = { paid: p.paid, markedBy: p.marked_by, markedAt: p.marked_at ? Date.parse(p.marked_at) : null };
@@ -338,11 +338,19 @@ const DB = (function () {
           const { data: ex } = await c.from('students').select('id').eq('id', s.id);
           if (ex && ex.length) continue;
           await c.from('students').insert(Object.assign({ id: s.id }, unmapStudent(s)));
-          await c.from('fee_settings').insert({ student_id: s.id, amount: defaultFee(s) });
+          const savedFee = p.fees && p.fees[s.id];
+          await c.from('fee_settings').insert({ student_id: s.id, amount: (savedFee && savedFee.amount != null) ? savedFee.amount : defaultFee(s) });
         }
         for (const k of Object.keys(p.reports)) {
           const parts = k.split('|');
-          await c.from('reports').upsert({ student_id: parts[0], date: parts[1], present: true });
+          await c.from('reports').upsert(Object.assign({ student_id: parts[0], date: parts[1] }, unmapReport(p.reports[k])), { onConflict: 'student_id,date' });
+        }
+        for (const sid of Object.keys(p.fees || {})) {
+          const f = p.fees[sid];
+          for (const ym of Object.keys(f.payments || {})) {
+            const pay = f.payments[ym];
+            await c.from('fee_payments').upsert({ student_id: sid, month: ym + '-01', paid: !!pay.paid, marked_by: pay.markedBy || null, marked_at: pay.markedAt ? new Date(pay.markedAt).toISOString() : null }, { onConflict: 'student_id,month' });
+          }
         }
       } else {
         const { data: existing } = await c.from('students').select('id').eq('id', p.st.id);
@@ -351,7 +359,13 @@ const DB = (function () {
         if (p.fees) await c.from('fee_settings').insert({ student_id: p.st.id, amount: p.fees.amount || defaultFee(p.st) });
         for (const k of Object.keys(p.reports)) {
           const parts = k.split('|');
-          await c.from('reports').upsert({ student_id: parts[0], date: parts[1], present: true });
+          await c.from('reports').upsert(Object.assign({ student_id: parts[0], date: parts[1] }, unmapReport(p.reports[k])), { onConflict: 'student_id,date' });
+        }
+        if (p.fees) {
+          for (const ym of Object.keys(p.fees.payments || {})) {
+            const pay = p.fees.payments[ym];
+            await c.from('fee_payments').upsert({ student_id: p.st.id, month: ym + '-01', paid: !!pay.paid, marked_by: pay.markedBy || null, marked_at: pay.markedAt ? new Date(pay.markedAt).toISOString() : null }, { onConflict: 'student_id,month' });
+          }
         }
       }
       await c.from('trash').delete().eq('tid', tid);
@@ -376,8 +390,9 @@ const DB = (function () {
     },
     async saveReport(studentId, ds, rep) {
       const c = client();
-      const { error } = await c.from('reports').upsert(Object.assign({ student_id: studentId, date: ds }, unmapReport(rep)));
+      const { error } = await c.from('reports').upsert(Object.assign({ student_id: studentId, date: ds }, unmapReport(rep)), { onConflict: 'student_id,date' });
       if (error) console.error('saveReport', error);
+      return error ? { ok: false } : { ok: true };
     },
     async getMonthReports(studentId, year, month) {
       const c = client();
@@ -439,21 +454,27 @@ const DB = (function () {
     async setFeeAmount(studentId, amount) {
       const c = client();
       const { data: existing } = await c.from('fee_settings').select('student_id').eq('student_id', studentId);
-      if (existing && existing.length) {
-        await c.from('fee_settings').update({ amount: amount }).eq('student_id', studentId);
-      } else {
-        await c.from('fee_settings').insert({ student_id: studentId, amount: amount });
+      if (amount == null) {
+        if (existing && existing.length) await c.from('fee_settings').delete().eq('student_id', studentId);
+        return { ok: true };
       }
+      let error = null;
+      if (existing && existing.length) {
+        ({ error } = await c.from('fee_settings').update({ amount: amount }).eq('student_id', studentId));
+      } else {
+        ({ error } = await c.from('fee_settings').insert({ student_id: studentId, amount: amount }));
+      }
+      if (error) console.error('setFeeAmount', error);
+      return error ? { ok: false } : { ok: true };
     },
     async markFee(studentId, ym, paid, markedBy) {
       const c = client();
       const month = ym + '-01';
-      const { data: existing } = await c.from('fee_payments').select('id').eq('student_id', studentId).eq('month', month);
-      if (existing && existing.length) {
-        await c.from('fee_payments').update({ paid: paid, marked_by: markedBy, marked_at: new Date().toISOString() }).eq('student_id', studentId).eq('month', month);
-      } else {
-        await c.from('fee_payments').insert({ student_id: studentId, month: month, paid: paid, marked_by: markedBy, marked_at: new Date().toISOString() });
-      }
+      const { error } = await c.from('fee_payments').upsert(
+        { student_id: studentId, month: month, paid: paid, marked_by: markedBy, marked_at: new Date().toISOString() },
+        { onConflict: 'student_id,month' }
+      );
+      if (error) console.error('markFee', error);
     },
 
     /* weekly + monthly reports */
@@ -464,7 +485,9 @@ const DB = (function () {
     },
     async saveWeekReport(studentId, weekKey, rep) {
       const c = client();
-      await c.from('weekly_reports').upsert({ student_id: studentId, week_key: weekKey, data: rep }, { onConflict: 'student_id,week_key' });
+      const { error } = await c.from('weekly_reports').upsert({ student_id: studentId, week_key: weekKey, data: rep }, { onConflict: 'student_id,week_key' });
+      if (error) console.error('saveWeekReport', error);
+      return error ? { ok: false } : { ok: true };
     },
     async getMonthReport(studentId, ym) {
       const c = client();
@@ -473,17 +496,19 @@ const DB = (function () {
     },
     async saveMonthReport(studentId, ym, rep) {
       const c = client();
-      await c.from('monthly_reports').upsert({ student_id: studentId, ym: ym, data: rep }, { onConflict: 'student_id,ym' });
+      const { error } = await c.from('monthly_reports').upsert({ student_id: studentId, ym: ym, data: rep }, { onConflict: 'student_id,ym' });
+      if (error) console.error('saveMonthReport', error);
+      return error ? { ok: false } : { ok: true };
     },
 
     /* weekly + monthly reports (aliases used by reports hub) */
     async getWeekly(studentId, weekKey) { return api.getWeekReport(studentId, weekKey); },
     async saveWeekly(studentId, weekKey, data) {
-      await api.saveWeekReport(studentId, weekKey, Object.assign({}, data, { savedAt: Date.now() }));
+      return api.saveWeekReport(studentId, weekKey, Object.assign({}, data, { savedAt: Date.now() }));
     },
     async getMonthlyReport(studentId, ym) { return api.getMonthReport(studentId, ym); },
     async saveMonthlyReport(studentId, ym, data) {
-      await api.saveMonthReport(studentId, ym, Object.assign({}, data, { savedAt: Date.now() }));
+      return api.saveMonthReport(studentId, ym, Object.assign({}, data, { savedAt: Date.now() }));
     },
 
     /* full dump (export) */
@@ -495,12 +520,18 @@ const DB = (function () {
       const users = await api.getUsers();
       const fees = await api.getAllFees();
       const reports = {};
+      const weekly = {};
+      const monthly = {};
       const ids = students.map(function (s) { return s.id; });
       if (ids.length) {
-        const { data } = await client().from('reports').select('*').in('student_id', ids);
-        (data || []).forEach(function (r) { reports[r.student_id + '|' + dstr(new Date(r.date))] = mapReport(r); });
+        const { data: repRows } = await client().from('reports').select('*').in('student_id', ids);
+        (repRows || []).forEach(function (r) { reports[r.student_id + '|' + dstr(new Date(r.date))] = mapReport(r); });
+        const { data: wkRows } = await client().from('weekly_reports').select('*').in('student_id', ids);
+        (wkRows || []).forEach(function (r) { weekly[r.student_id + '|' + r.week_key] = r.data; });
+        const { data: moRows } = await client().from('monthly_reports').select('*').in('student_id', ids);
+        (moRows || []).forEach(function (r) { monthly[r.student_id + '|' + r.ym] = r.data; });
       }
-      return { classes: classes, users: users, students: students, reports: reports, fees: fees, weekly: {}, monthly: {} };
+      return { classes: classes, users: users, students: students, reports: reports, fees: fees, weekly: weekly, monthly: monthly };
     },
 
     /* full restore (import) — inserts into supabase */
@@ -525,7 +556,22 @@ const DB = (function () {
       }
       for (const k of Object.keys(data.reports || {})) {
         const parts = k.split('|');
-        await c.from('reports').upsert(Object.assign({ student_id: parts[0], date: parts[1] }, unmapReport(data.reports[k])));
+        await c.from('reports').upsert(Object.assign({ student_id: parts[0], date: parts[1] }, unmapReport(data.reports[k])), { onConflict: 'student_id,date' });
+      }
+      for (const sid of Object.keys(data.fees || {})) {
+        const f = data.fees[sid];
+        for (const ym of Object.keys(f.payments || {})) {
+          const pay = f.payments[ym];
+          await c.from('fee_payments').upsert({ student_id: sid, month: ym + '-01', paid: !!pay.paid, marked_by: pay.markedBy || null, marked_at: pay.markedAt ? new Date(pay.markedAt).toISOString() : null }, { onConflict: 'student_id,month' });
+        }
+      }
+      for (const k of Object.keys(data.weekly || {})) {
+        const parts = k.split('|');
+        await c.from('weekly_reports').upsert({ student_id: parts[0], week_key: parts[1], data: data.weekly[k] }, { onConflict: 'student_id,week_key' });
+      }
+      for (const k of Object.keys(data.monthly || {})) {
+        const parts = k.split('|');
+        await c.from('monthly_reports').upsert({ student_id: parts[0], ym: parts[1], data: data.monthly[k] }, { onConflict: 'student_id,ym' });
       }
       return { ok: true };
     },

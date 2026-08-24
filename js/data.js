@@ -1,13 +1,14 @@
 /* ============================================================
-   Data layer — SAMPLE MODE
-   Everything runs on localStorage with seeded demo data.
-   The API surface below is identical to the Supabase-backed
-   layer we'll swap in once the real database exists.
+   Data layer — SUPABASE MODE
+   Replaces localStorage with a shared Supabase database.
+   Same public API surface as the sample layer (see git history).
    ============================================================ */
 const DB = (function () {
-  const KEY = 'mdm_db_v3';
+  const SUPABASE_URL = 'https://xalvjslloofelcftqwqp.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_Gru4M7oK7lP-mako8r6zmQ_Anr0dYXs';
   const SESSION_KEY = 'mdm_session';
   let memSession = null;
+  let sb = null;
 
   /* fee defaults — part time 18, full time 25 (OMR) */
   const PART_TIME_FEE = 18;
@@ -17,149 +18,84 @@ const DB = (function () {
     return st && st.fullTime ? FULL_TIME_FEE : PART_TIME_FEE;
   }
 
-  const DEFAULT_QARI_PASS = 'qari123';
-  const CATEGORIES = { A: '10', B: '20', C: '30', D: '40' };
-
-  function nextQariId(db) {
-    let n = 1;
-    while (db.users['qari' + n]) n++;
-    return 'qari' + n;
+  function client() {
+    if (!sb) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return sb;
   }
 
-  function ymStr(d) {
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  }
-
-  /* ---------- seed ---------- */
-  function seed() {
-    const classes = [
-      { id: 'c1', name: 'Sheikh Atta-ul-Rahman', qariId: 'qari1' },
-      { id: 'c2', name: 'Sheikh Anees', qariId: 'qari2' },
-      { id: 'c3', name: 'Sheikh Hussain', qariId: 'qari3' }
-    ];
-    const users = {
-      qari1: { id: 'qari1', name: 'Sheikh Atta-ul-Rahman', role: 'qari', classId: 'c1', pass: DEFAULT_QARI_PASS },
-      qari2: { id: 'qari2', name: 'Sheikh Anees', role: 'qari', classId: 'c2', pass: DEFAULT_QARI_PASS },
-      qari3: { id: 'qari3', name: 'Sheikh Hussain', role: 'qari', classId: 'c3', pass: DEFAULT_QARI_PASS },
-      admin: { id: 'admin', name: 'Sheikh Naseer Ahmed', role: 'principal', pass: 'admin@2008' }
-    };
-    const names = [
-      ['Ahmad Raza', 13, 12, 'A', 'Muhammad Raza'],
-      ['Muhammad Usman', 11, 8, 'B', 'Usman Khan'],
-      ['Abdul Rahman', 9, 5, 'A', 'Rahman Ali'],
-      ['Hamza Siddiqui', 14, 15, 'B', 'Siddiqui Ahmed'],
-      ['Ibrahim Khalil', 10, 6, 'C', 'Khalil Khan'],
-      ['Yusuf Ansari', 12, 10, 'A', 'Ansari Muhammad'],
-      ['Bilal Qureshi', 11, 9, 'B', 'Qureshi Abdul'],
-      ['Zaid Farooq', 13, 14, 'A', 'Farooq Aslam'],
-      ['Ayaan Malik', 9, 4, 'C', 'Malik Nasir'],
-      ['Sulaiman Haq', 12, 11, 'B', 'Haq Tariq'],
-      ['Haris Shah', 10, 7, 'A', 'Shah Javed'],
-      ['Mansoor Ali', 14, 16, 'D', 'Ali Saeed']
-    ];
-    let sid = 1;
-    const students = [];
-    classes.forEach(function (cls, ci) {
-      for (let i = 0; i < 6; i++) {
-        const row = names[(ci * 6 + i) % names.length];
-        students.push({
-          id: 's' + sid,
-          classId: cls.id,
-          name: row[0],
-          age: row[1] + ci,
-          para: row[2],
-          currentPage: (row[2] - 1) * 20 + 1 + ((sid * 3 + ci) % 20),
-          fullTime: (sid % 3 !== 0),
-          parentName: row[4],
-          parentNumber: '96895455137',
-          omanId: '',
-          category: row[3]
-        });
-        sid++;
-      }
-    });
-
-    /* deterministic pseudo-random reports for the last 14 days (ends yesterday,
-       so today starts blank — the qari enters today's reports in the demo) */
-    const reports = {};
-    const today = new Date();
-    for (let d = 14; d >= 1; d--) {
-      const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - d);
-      const ds = dstr(date);
-      students.forEach(function (st, si) {
-        const rnd = (si * 7 + d * 5 + si * d * 3) % 100;
-        const absent = rnd < 12;
-        const rep = { present: !absent };
-        if (!absent) {
-          rep.sabaqDone = (rnd % 17) !== 3;
-          if (rep.sabaqDone) {
-            rep.pages = 1 + (rnd % 3);
-            rep.lines = (rnd % 5 === 0) ? 1 + (rnd % 5) : null;
-          } else {
-            rep.pages = null; rep.lines = null;
-          }
-          rep.sabqiDone = (rnd % 13) !== 5;
-          rep.manzilDone = (rnd % 11) !== 4;
-          rep.manzil = rep.manzilDone ? ['half', 'third', 'full'][(si + d) % 3] : null;
-          if (si % 5 === 2 && (rnd % 3) === 0) rep.comment = 'Great progress today, keep it up!';
-        }
-        reports[st.id + '|' + ds] = rep;
-      });
-    }
-
-    /* fees — principal sets amount per student; payments keyed by YYYY-MM */
-    const fees = {};
-    students.forEach(function (st) {
-      fees[st.id] = { amount: defaultFee(st), payments: {} };
-    });
-    const curYm = ymStr(new Date());
-    students.forEach(function (st, i) {
-      if (i % 2 === 0) {
-        const qariId = st.classId === 'c1' ? 'qari1' : st.classId === 'c2' ? 'qari2' : 'qari3';
-        fees[st.id].payments[curYm] = { paid: true, markedBy: qariId, markedAt: Date.now() - 86400000 };
-      }
-    });
-
-    /* weekly + monthly reports — keyed by studentId|weekKey and studentId|YYYY-MM */
-    const weekly = {};
-    const monthly = {};
-
-    return { classes: classes, users: users, students: students, reports: reports, fees: fees, weekly: weekly, monthly: monthly, trash: [], createdAt: Date.now() };
-  }
-
-  function load() {
+  /* session helpers (sync — the UI reads them synchronously) */
+  function persistSession(s) {
+    memSession = s;
     try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const db = JSON.parse(raw);
-        if (!db.trash) db.trash = [];
-        /* normalize legacy fee amounts (null or old seed 5 → 18/25 based on student type) */
-        db.students.forEach(function (st) {
-          const f = db.fees[st.id];
-          if (!f) {
-            db.fees[st.id] = { amount: defaultFee(st), payments: {} };
-          } else if (f.amount == null || f.amount === LEGACY_SEED_FEE) {
-            f.amount = defaultFee(st);
-          }
-        });
-        pruneTrash(db);
-        return db;
-      }
+      if (s) sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      else sessionStorage.removeItem(SESSION_KEY);
     } catch (e) {}
-    const db = seed();
-    save(db);
-    return db;
+  }
+  function getCachedSession() {
+    if (memSession) return memSession;
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (raw) { memSession = JSON.parse(raw); return memSession; }
+    } catch (e) {}
+    return null;
   }
 
-  function save(db) {
-    try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {}
+  /* ---------- row mapping ---------- */
+  function mapStudent(r) {
+    return {
+      id: r.id,
+      classId: r.class_id,
+      name: r.name,
+      age: r.age,
+      para: r.para,
+      currentPage: r.current_page,
+      fullTime: r.full_time,
+      parentName: r.parent_name,
+      parentNumber: r.parent_number,
+      omanId: r.oman_id,
+      category: r.category
+    };
   }
-
-  /* remove trash entries older than 30 days */
-  function pruneTrash(db) {
-    const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-    const cutoff = Date.now() - THIRTY_DAYS;
-    db.trash = db.trash.filter(function (item) { return item.deletedAt > cutoff; });
+  function unmapStudent(st) {
+    return {
+      class_id: st.classId,
+      name: st.name,
+      age: st.age,
+      para: st.para,
+      current_page: st.currentPage,
+      full_time: st.fullTime,
+      parent_name: st.parentName,
+      parent_number: st.parentNumber,
+      oman_id: st.omanId,
+      category: st.category
+    };
+  }
+  function mapReport(r) {
+    return {
+      present: r.present,
+      sabaqDone: r.sabaq_done,
+      pages: r.pages,
+      lines: r.lines,
+      sabqiDone: r.sabqi_done,
+      manzilDone: r.manzil_done,
+      manzil: r.manzil,
+      comment: r.comment
+    };
+  }
+  function unmapReport(rep) {
+    return {
+      present: rep.present,
+      sabaq_done: rep.sabaqDone,
+      pages: rep.pages,
+      lines: rep.lines,
+      sabqi_done: rep.sabqiDone,
+      manzil_done: rep.manzilDone,
+      manzil: rep.manzil,
+      comment: rep.comment
+    };
+  }
+  function mapClass(r) {
+    return { id: r.id, name: r.name, qariId: null };
   }
 
   /* ---------- date helpers ---------- */
@@ -175,262 +111,355 @@ const DB = (function () {
     const d = new Date(parts[0], parts[1] - 1, parts[2] + n);
     return dstr(d);
   }
+  function ymStr(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
 
-  /* ---------- public API (Supabase will replace the bodies) ---------- */
+  const CATEGORIES = { A: '10', B: '20', C: '30', D: '40' };
+
+  /* ---------- public API ---------- */
   const api = {
     /* auth */
-    async login(username, password) {
-      const db = load();
-      const u = db.users[String(username).trim().toLowerCase()];
-      if (u && u.pass === password) {
-        const session = { id: u.id, name: u.name, role: u.role, classId: u.classId };
-        try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch (e) {}
-        memSession = session;
-        return session;
+    async login(identifier, password) {
+      const c = client();
+      const { data, error } = await c.auth.signInWithPassword({
+        email: String(identifier).trim().toLowerCase(),
+        password: password
+      });
+      if (error || !data.user) return null;
+      let prof = await api.getProfile(data.user.id);
+      if (!prof) return null;
+      /* self-heal: if there is no admin anywhere yet, promote the first user to admin */
+      if (prof.role !== 'admin') {
+        const { data: admins } = await c.from('profiles').select('id').eq('role', 'admin').limit(1);
+        if (!admins || !admins.length) {
+          await c.from('profiles').update({ role: 'admin' }).eq('id', data.user.id);
+          prof = await api.getProfile(data.user.id);
+        }
       }
-      return null;
+      const session = {
+        id: data.user.id,
+        name: prof.name || data.user.email,
+        role: prof.role === 'admin' ? 'principal' : 'qari',
+        classId: prof.class_id || null
+      };
+      persistSession(session);
+      return session;
     },
+    async getProfile(userId) {
+      const c = client();
+      const { data, error } = await c.from('profiles').select('*').eq('id', userId).maybeSingle();
+      if (error || !data) return null;
+      return data;
+    },
+    /* sync view of current session (the UI reads it synchronously) */
     getSession() {
-      try {
-        const raw = sessionStorage.getItem(SESSION_KEY);
-        if (raw) return JSON.parse(raw);
-      } catch (e) {}
-      return memSession;
+      return getCachedSession();
     },
-    logout() {
-      memSession = null;
-      try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+    /* called once at boot — rebuild cached session from Supabase's persisted session */
+    async restoreSession() {
+      try {
+        const { data } = await client().auth.getSession();
+        if (data && data.session) {
+          const prof = await api.getProfile(data.session.user.id);
+          if (prof) {
+            const s = {
+              id: data.session.user.id,
+              name: prof.name || data.session.user.email,
+              role: prof.role === 'admin' ? 'principal' : 'qari',
+              classId: prof.class_id || null
+            };
+            persistSession(s);
+            return s;
+          }
+        }
+      } catch (e) {}
+      return getCachedSession();
+    },
+    async logout() {
+      persistSession(null);
+      try { await client().auth.signOut(); } catch (e) {}
     },
 
     /* users */
-    async getUsers() { return load().users; },
+    async getUsers() {
+      const c = client();
+      const { data, error } = await c.from('profiles').select('*');
+      const out = {};
+      (data || []).forEach(function (p) {
+        out[p.id] = { id: p.id, name: p.name, role: p.role === 'admin' ? 'principal' : 'qari', classId: p.class_id };
+      });
+      return out;
+    },
 
     /* classes — one class per qari; the class name IS the qari's name */
-    async getClasses() { return load().classes; },
+    async getClasses() {
+      const c = client();
+      const { data, error } = await c.from('classes').select('*').order('created_at');
+      return (data || []).map(mapClass);
+    },
     async getClass(id) {
-      return load().classes.find(function (c) { return c.id === id; }) || null;
+      const c = client();
+      const { data, error } = await c.from('classes').select('*').eq('id', id).maybeSingle();
+      return data ? mapClass(data) : null;
     },
     async saveClass(cls) {
-      const db = load();
+      const c = client();
       if (cls.id) {
-        /* edit — rename the class and its qari together */
-        const i = db.classes.findIndex(function (c) { return c.id === cls.id; });
-        if (i >= 0) {
-          const old = db.classes[i];
-          db.classes[i] = { id: old.id, name: cls.name, qariId: old.qariId };
-          const q = db.users[old.qariId];
-          if (q) q.name = cls.name;
-        }
+        const { data, error } = await c.from('classes').update({ name: cls.name, qari_name: cls.name }).eq('id', cls.id).select().single();
+        return data ? mapClass(data) : cls;
       } else {
-        /* add — create a fresh qari account + class from the name */
-        const qariId = nextQariId(db);
-        const cid = 'c' + Date.now();
-        db.classes.push({ id: cid, name: cls.name, qariId: qariId });
-        db.users[qariId] = { id: qariId, name: cls.name, role: 'qari', classId: cid, pass: DEFAULT_QARI_PASS };
+        const { data, error } = await c.from('classes').insert({ name: cls.name, qari_name: cls.name, category: 'A' }).select().single();
+        return data ? mapClass(data) : cls;
       }
-      save(db);
-      return cls;
     },
     async deleteClass(id) {
-      const db = load();
-      const cls = db.classes.find(function (c) { return c.id === id; });
+      const c = client();
+      const cls = await api.getClass(id);
       if (!cls) return { ok: false };
-      const doomed = db.students.filter(function (s) { return s.classId === id; });
-      const doomedIds = doomed.map(function (s) { return s.id; });
-      const reports = {};
-      Object.keys(db.reports).forEach(function (k) {
-        if (doomedIds.some(function (did) { return k.indexOf(did + '|') === 0; })) reports[k] = db.reports[k];
-      });
-      const fees = {};
-      doomedIds.forEach(function (did) { if (db.fees[did]) fees[did] = db.fees[did]; });
-      const qari = cls.qariId ? db.users[cls.qariId] : null;
-      db.trash.push({
-        id: 't' + Date.now(),
+      const { data: studs } = await c.from('students').select('*').eq('class_id', id);
+      const students = (studs || []).map(mapStudent);
+      const studentIds = students.map(function (s) { return s.id; });
+      let reports = {}, fees = {};
+      if (studentIds.length) {
+        const { data: repRows } = await c.from('reports').select('*').in('student_id', studentIds);
+        (repRows || []).forEach(function (r) { reports[r.student_id + '|' + dstr(new Date(r.date))] = mapReport(r); });
+        const { data: fsRows } = await c.from('fee_settings').select('*').in('student_id', studentIds);
+        const { data: fpRows } = await c.from('fee_payments').select('*').in('student_id', studentIds);
+        fsRows.forEach(function (f) { if (!fees[f.student_id]) fees[f.student_id] = { amount: f.amount, payments: {} }; });
+        fpRows.forEach(function (p) {
+          const ym = ymStr(new Date(p.month));
+          if (!fees[p.student_id]) fees[p.student_id] = { amount: null, payments: {} };
+          fees[p.student_id].payments[ym] = { paid: p.paid, markedBy: p.marked_by, markedAt: p.marked_at ? Date.parse(p.marked_at) : null };
+        });
+      }
+      await api.pushTrash({
         kind: 'class',
-        deletedAt: Date.now(),
-        payload: { cls: cls, qari: qari, students: doomed, reports: reports, fees: fees }
+        payload: { cls: { id: id, name: cls.name }, students: students, reports: reports, fees: fees }
       });
-      db.classes = db.classes.filter(function (c) { return c.id !== id; });
-      if (cls && cls.qariId) delete db.users[cls.qariId];
-      db.students = db.students.filter(function (s) { return s.classId !== id; });
-      Object.keys(reports).forEach(function (k) { delete db.reports[k]; });
-      doomedIds.forEach(function (did) { delete db.fees[did]; });
-      save(db);
+      await c.from('classes').delete().eq('id', id);
       return { ok: true };
     },
 
     /* students */
     async getStudents(classId) {
-      return load().students.filter(function (s) { return s.classId === classId; });
+      const c = client();
+      const { data, error } = await c.from('students').select('*').eq('class_id', classId).order('name');
+      return (data || []).map(mapStudent);
     },
     async getStudent(id) {
-      return load().students.find(function (s) { return s.id === id; }) || null;
+      const c = client();
+      const { data, error } = await c.from('students').select('*').eq('id', id).maybeSingle();
+      return data ? mapStudent(data) : null;
     },
     async saveStudent(st) {
-      const db = load();
+      const c = client();
       if (st.id) {
-        const i = db.students.findIndex(function (s) { return s.id === st.id; });
-        if (i >= 0) {
-          const old = db.students[i];
-          db.students[i] = st;
-          const f = db.fees[st.id];
+        const { data: oldRow } = await c.from('students').select('*').eq('id', st.id).maybeSingle();
+        const old = oldRow ? mapStudent(oldRow) : null;
+        const { data, error } = await c.from('students').update(unmapStudent(st)).eq('id', st.id).select().single();
+        if (old) {
+          const oldDefault = defaultFee(old);
+          const { data: f } = await c.from('fee_settings').select('*').eq('student_id', st.id).maybeSingle();
           if (f) {
-            const oldDefault = defaultFee(old);
-            if (old.fullTime !== st.fullTime && (f.amount == null || f.amount === oldDefault || f.amount === LEGACY_SEED_FEE)) {
-              f.amount = defaultFee(st);
+            if (old.fullTime !== st.fullTime && (f.amount == null || Number(f.amount) === oldDefault || Number(f.amount) === LEGACY_SEED_FEE)) {
+              await c.from('fee_settings').update({ amount: defaultFee(st) }).eq('student_id', st.id);
             }
           } else {
-            db.fees[st.id] = { amount: defaultFee(st), payments: {} };
+            await c.from('fee_settings').insert({ student_id: st.id, amount: defaultFee(st) });
           }
         }
+        return data ? mapStudent(data) : st;
       } else {
-        st.id = 's' + Date.now();
-        db.students.push(st);
-        db.fees[st.id] = { amount: defaultFee(st), payments: {} };
+        const { data, error } = await c.from('students').insert(unmapStudent(st)).select().single();
+        const created = data ? mapStudent(data) : st;
+        await c.from('fee_settings').insert({ student_id: created.id, amount: defaultFee(created) });
+        return created;
       }
-      save(db);
-      return st;
     },
     async deleteStudent(id) {
-      const db = load();
-      const st = db.students.find(function (s) { return s.id === id; });
+      const c = client();
+      const st = await api.getStudent(id);
       if (!st) return { ok: false };
-      const reports = {};
-      Object.keys(db.reports).forEach(function (k) {
-        if (k.indexOf(id + '|') === 0) reports[k] = db.reports[k];
-      });
-      db.trash.push({
-        id: 't' + Date.now(),
-        kind: 'student',
-        deletedAt: Date.now(),
-        payload: { st: st, reports: reports, fees: db.fees[id] || null }
-      });
-      db.students = db.students.filter(function (s) { return s.id !== id; });
-      Object.keys(reports).forEach(function (k) { delete db.reports[k]; });
-      delete db.fees[id];
-      save(db);
+      let reports = {};
+      const { data: repRows } = await c.from('reports').select('*').eq('student_id', id);
+      (repRows || []).forEach(function (r) { reports[r.student_id + '|' + dstr(new Date(r.date))] = mapReport(r); });
+      const { data: f } = await c.from('fee_settings').select('*').eq('student_id', id).maybeSingle();
+      const fees = f ? { amount: f.amount, payments: {} } : null;
+      const { data: fpRows } = await c.from('fee_payments').select('*').eq('student_id', id);
+      if (fees && fpRows) {
+        fpRows.forEach(function (p) {
+          fees.payments[ymStr(new Date(p.month))] = { paid: p.paid, markedBy: p.marked_by, markedAt: p.marked_at ? Date.parse(p.marked_at) : null };
+        });
+      }
+      await api.pushTrash({ kind: 'student', payload: { st: st, reports: reports, fees: fees } });
+      await c.from('students').delete().eq('id', id);
       return { ok: true };
     },
 
-    /* ---------- trash (recently deleted, kept 30 days) ---------- */
+    /* trash */
+    async pushTrash(item) {
+      const c = client();
+      await c.from('trash').insert({
+        tid: 't' + Date.now(),
+        kind: item.kind,
+        payload: item.payload
+      });
+    },
     async getTrash() {
-      const db = load();
-      pruneTrash(db);
-      return db.trash.slice().sort(function (a, b) { return b.deletedAt - a.deletedAt; });
+      const c = client();
+      const { data } = await c.from('trash').select('*').order('deleted_at', { ascending: false });
+      return (data || []).map(function (r) {
+        return { id: r.tid, kind: r.kind, deletedAt: Date.parse(r.deleted_at), payload: r.payload };
+      });
     },
     async restoreTrashItem(tid) {
-      const db = load();
-      const idx = db.trash.findIndex(function (t) { return t.id === tid; });
-      if (idx < 0) return { ok: false };
-      const item = db.trash[idx];
-      const p = item.payload;
-      if (item.kind === 'class') {
-        if (db.classes.some(function (c) { return c.id === p.cls.id; })) return { ok: false, error: 'exists' };
-        db.classes.push(p.cls);
-        if (p.qari && !db.users[p.qari.id]) db.users[p.qari.id] = p.qari;
-        p.students.forEach(function (s) { if (!db.students.some(function (x) { return x.id === s.id; })) db.students.push(s); });
-        Object.assign(db.reports, p.reports);
-        Object.assign(db.fees, p.fees);
+      const c = client();
+      const { data: rows } = await c.from('trash').select('*').eq('tid', tid);
+      const row = rows && rows[0];
+      if (!row) return { ok: false };
+      const p = row.payload;
+      if (row.kind === 'class') {
+        const { data: existing } = await c.from('classes').select('id').eq('id', p.cls.id);
+        if (existing && existing.length) return { ok: false, error: 'exists' };
+        await c.from('classes').insert({ id: p.cls.id, name: p.cls.name, qari_name: p.cls.name });
+        for (const s of p.students) {
+          const { data: ex } = await c.from('students').select('id').eq('id', s.id);
+          if (ex && ex.length) continue;
+          await c.from('students').insert(Object.assign({ id: s.id }, unmapStudent(s)));
+          await c.from('fee_settings').insert({ student_id: s.id, amount: defaultFee(s) });
+        }
+        for (const k of Object.keys(p.reports)) {
+          const parts = k.split('|');
+          await c.from('reports').upsert({ student_id: parts[0], date: parts[1], present: true });
+        }
       } else {
-        if (db.students.some(function (s) { return s.id === p.st.id; })) return { ok: false, error: 'exists' };
-        db.students.push(p.st);
-        Object.assign(db.reports, p.reports);
-        if (p.fees) db.fees[p.st.id] = p.fees;
+        const { data: existing } = await c.from('students').select('id').eq('id', p.st.id);
+        if (existing && existing.length) return { ok: false, error: 'exists' };
+        await c.from('students').insert(Object.assign({ id: p.st.id }, unmapStudent(p.st)));
+        if (p.fees) await c.from('fee_settings').insert({ student_id: p.st.id, amount: p.fees.amount || defaultFee(p.st) });
+        for (const k of Object.keys(p.reports)) {
+          const parts = k.split('|');
+          await c.from('reports').upsert({ student_id: parts[0], date: parts[1], present: true });
+        }
       }
-      db.trash.splice(idx, 1);
-      save(db);
+      await c.from('trash').delete().eq('tid', tid);
       return { ok: true };
     },
     async purgeTrashItem(tid) {
-      const db = load();
-      db.trash = db.trash.filter(function (t) { return t.id !== tid; });
-      save(db);
+      const c = client();
+      await c.from('trash').delete().eq('tid', tid);
       return { ok: true };
     },
     async emptyTrash() {
-      const db = load();
-      db.trash = [];
-      save(db);
+      const c = client();
+      await c.from('trash').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       return { ok: true };
     },
 
     /* reports */
     async getReport(studentId, ds) {
-      return load().reports[studentId + '|' + ds] || null;
+      const c = client();
+      const { data } = await c.from('reports').select('*').eq('student_id', studentId).eq('date', ds).maybeSingle();
+      return data ? mapReport(data) : null;
     },
     async saveReport(studentId, ds, rep) {
-      const db = load();
-      db.reports[studentId + '|' + ds] = rep;
-      save(db);
+      const c = client();
+      const { error } = await c.from('reports').upsert(Object.assign({ student_id: studentId, date: ds }, unmapReport(rep)));
+      if (error) console.error('saveReport', error);
     },
     async getMonthReports(studentId, year, month) {
-      const db = load();
-      const prefix = studentId + '|' + year + '-' + String(month).padStart(2, '0');
+      const c = client();
+      const prefix = year + '-' + String(month).padStart(2, '0');
+      const { data } = await c.from('reports').select('*').eq('student_id', studentId).like('date', prefix + '-%');
       const out = {};
-      Object.keys(db.reports).forEach(function (k) {
-        if (k.indexOf(prefix) === 0) out[k.split('|')[1]] = db.reports[k];
-      });
+      (data || []).forEach(function (r) { out[dstr(new Date(r.date))] = mapReport(r); });
       return out;
     },
 
     /* fees */
-    async getAllFees() { return load().fees; },
+    async getAllFees() {
+      const c = client();
+      const { data: fs } = await c.from('fee_settings').select('*');
+      const { data: fp } = await c.from('fee_payments').select('*');
+      const out = {};
+      (fs || []).forEach(function (f) { out[f.student_id] = { amount: f.amount == null ? null : Number(f.amount), payments: {} }; });
+      (fp || []).forEach(function (p) {
+        const ym = ymStr(new Date(p.month));
+        if (!out[p.student_id]) out[p.student_id] = { amount: null, payments: {} };
+        out[p.student_id].payments[ym] = { paid: p.paid, markedBy: p.marked_by, markedAt: p.marked_at ? Date.parse(p.marked_at) : null };
+      });
+      return out;
+    },
     async setFeeAmount(studentId, amount) {
-      const db = load();
-      if (!db.fees[studentId]) db.fees[studentId] = { amount: null, payments: {} };
-      db.fees[studentId].amount = amount;
-      save(db);
+      const c = client();
+      const { data: existing } = await c.from('fee_settings').select('student_id').eq('student_id', studentId);
+      if (existing && existing.length) {
+        await c.from('fee_settings').update({ amount: amount }).eq('student_id', studentId);
+      } else {
+        await c.from('fee_settings').insert({ student_id: studentId, amount: amount });
+      }
     },
     async markFee(studentId, ym, paid, markedBy) {
-      const db = load();
-      if (!db.fees[studentId]) db.fees[studentId] = { amount: null, payments: {} };
-      db.fees[studentId].payments[ym] = { paid: paid, markedBy: markedBy, markedAt: Date.now() };
-      save(db);
+      const c = client();
+      const month = ym + '-01';
+      const { data: existing } = await c.from('fee_payments').select('id').eq('student_id', studentId).eq('month', month);
+      if (existing && existing.length) {
+        await c.from('fee_payments').update({ paid: paid, marked_by: markedBy, marked_at: new Date().toISOString() }).eq('student_id', studentId).eq('month', month);
+      } else {
+        await c.from('fee_payments').insert({ student_id: studentId, month: month, paid: paid, marked_by: markedBy, marked_at: new Date().toISOString() });
+      }
     },
 
     /* weekly + monthly reports */
     async getWeekReport(studentId, weekKey) {
-      return load().weekly[studentId + '|' + weekKey] || null;
+      const c = client();
+      const { data } = await c.from('weekly_reports').select('data').eq('student_id', studentId).eq('week_key', weekKey).maybeSingle();
+      return data && data.data ? data.data : null;
     },
     async saveWeekReport(studentId, weekKey, rep) {
-      const db = load();
-      db.weekly[studentId + '|' + weekKey] = rep;
-      save(db);
+      const c = client();
+      await c.from('weekly_reports').upsert({ student_id: studentId, week_key: weekKey, data: rep }, { onConflict: 'student_id,week_key' });
     },
     async getMonthReport(studentId, ym) {
-      return load().monthly[studentId + '|' + ym] || null;
+      const c = client();
+      const { data } = await c.from('monthly_reports').select('data').eq('student_id', studentId).eq('ym', ym).maybeSingle();
+      return data && data.data ? data.data : null;
     },
     async saveMonthReport(studentId, ym, rep) {
-      const db = load();
-      db.monthly[studentId + '|' + ym] = rep;
-      save(db);
+      const c = client();
+      await c.from('monthly_reports').upsert({ student_id: studentId, ym: ym, data: rep }, { onConflict: 'student_id,ym' });
     },
 
-    /* weekly + monthly reports */
-    async getWeekly(studentId, weekKey) {
-      return load().weekly[studentId + '|' + weekKey] || null;
-    },
+    /* weekly + monthly reports (aliases used by reports hub) */
+    async getWeekly(studentId, weekKey) { return api.getWeekReport(studentId, weekKey); },
     async saveWeekly(studentId, weekKey, data) {
-      const db = load();
-      db.weekly[studentId + '|' + weekKey] = Object.assign({}, data, { savedAt: Date.now() });
-      save(db);
+      await api.saveWeekReport(studentId, weekKey, Object.assign({}, data, { savedAt: Date.now() }));
     },
-    async getMonthlyReport(studentId, ym) {
-      return load().monthly[studentId + '|' + ym] || null;
-    },
+    async getMonthlyReport(studentId, ym) { return api.getMonthReport(studentId, ym); },
     async saveMonthlyReport(studentId, ym, data) {
-      const db = load();
-      db.monthly[studentId + '|' + ym] = Object.assign({}, data, { savedAt: Date.now() });
-      save(db);
+      await api.saveMonthReport(studentId, ym, Object.assign({}, data, { savedAt: Date.now() }));
     },
 
     /* full dump (export) */
     async getAllData() {
-      const db = load();
-      return { classes: db.classes, users: db.users, students: db.students, reports: db.reports, fees: db.fees, weekly: db.weekly, monthly: db.monthly };
+      const classes = await api.getClasses();
+      const students = [];
+      for (const cls of classes) {
+        const ss = await api.getStudents(cls.id);
+        for (const s of ss) students.push(s);
+      }
+      const users = await api.getUsers();
+      const fees = await api.getAllFees();
+      const reports = {};
+      for (const s of students) {
+        const { data } = await client().from('reports').select('*').eq('student_id', s.id);
+        (data || []).forEach(function (r) { reports[s.id + '|' + dstr(new Date(r.date))] = mapReport(r); });
+      }
+      return { classes: classes, users: users, students: students, reports: reports, fees: fees, weekly: {}, monthly: {} };
     },
 
-    /* full restore (import) — accepts the JSON dump from getAllData()/exportData, with or without the wrapper */
+    /* full restore (import) — inserts into supabase */
     async importData(payload) {
       let data = payload;
       if (data && data.app === 'madrasa-reports' && data.data) data = data.data;
@@ -438,17 +467,22 @@ const DB = (function () {
       if (!Array.isArray(data.classes) || !Array.isArray(data.students) || typeof data.users !== 'object') {
         return { ok: false, error: 'shape' };
       }
-      const db = {
-        classes: data.classes,
-        users: data.users || {},
-        students: data.students,
-        reports: data.reports || {},
-        fees: data.fees || {},
-        weekly: data.weekly || {},
-        monthly: data.monthly || {},
-        createdAt: data.createdAt || Date.now()
-      };
-      save(db);
+      const c = client();
+      for (const cls of data.classes) {
+        const { data: ex } = await c.from('classes').select('id').eq('id', cls.id);
+        if (!ex || !ex.length) await c.from('classes').insert({ id: cls.id, name: cls.name, qari_name: cls.name });
+      }
+      for (const s of data.students) {
+        const { data: ex } = await c.from('students').select('id').eq('id', s.id);
+        if (ex && ex.length) continue;
+        await c.from('students').insert(Object.assign({ id: s.id }, unmapStudent(s)));
+        const f = data.fees && data.fees[s.id];
+        await c.from('fee_settings').insert({ student_id: s.id, amount: f && f.amount != null ? f.amount : defaultFee(s) });
+      }
+      for (const k of Object.keys(data.reports || {})) {
+        const parts = k.split('|');
+        await c.from('reports').upsert(Object.assign({ student_id: parts[0], date: parts[1] }, unmapReport(data.reports[k])));
+      }
       return { ok: true };
     },
 
@@ -457,7 +491,8 @@ const DB = (function () {
     addDays: addDays,
 
     /* meta */
-    categories: CATEGORIES
+    categories: CATEGORIES,
+    isSupabase: true
   };
 
   return api;

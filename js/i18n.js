@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    i18n — English / Urdu dictionary
    ============================================================ */
 const I18N = (function () {
@@ -10,9 +10,9 @@ const I18N = (function () {
       loginTitleUr: 'دار المعارج',
       login: 'Login',
       logout: 'Logout',
-      userId: 'User ID',
+      userId: 'Email',
       password: 'Password',
-      loginError: 'Incorrect ID or password. Please try again.',
+      loginError: 'Incorrect email or password. Please try again.',
       welcome: 'Assalam-o-Alaikum',
       classOf: 'Class',
       students: 'Students',
@@ -151,7 +151,7 @@ const I18N = (function () {
       nothingToSend: 'No reports entered today yet.',
       pendingStudents: 'Reports not entered yet for:',
       sent: 'sent',
-      sampleOnly: 'SAMPLE — no real student data',
+      sampleOnly: 'Sign in with your email',
       copy: 'copy',
       page: 'Page',
       of: 'of',
@@ -328,7 +328,7 @@ const I18N = (function () {
       nothingToSend: 'آج ابھی کوئی رپورٹ درج نہیں ہوئی۔',
       pendingStudents: 'ان طلباء کی رپورٹ ابھی نہیں درج ہوئی:',
       sent: 'بھیجی گئی',
-      sampleOnly: 'نمونہ — کوئی حقیقی ڈیٹا نہیں',
+      sampleOnly: 'اپنی ای میل سے لاگ اِن کریں',
       copy: 'کاپی',
       page: 'صفحہ',
       of: 'از',
@@ -505,7 +505,7 @@ const I18N = (function () {
       nothingToSend: 'لا توجد تقارير مُدخلة اليوم بعد.',
       pendingStudents: 'لم تُدخل تقارير هؤلاء الطلاب بعد:',
       sent: 'أُرسل',
-      sampleOnly: 'نموذج — لا توجد بيانات حقيقية',
+      sampleOnly: 'سجل الدخول باستخدام بريدك الإلكتروني',
       copy: 'نسخ',
       page: 'صفحة',
       of: 'من',
@@ -570,3 +570,4 @@ const I18N = (function () {
 
   return { t: t, get: get, set: set, urDigits: urDigits, arDigits: arDigits, digits: digits, dict: dict };
 })();
+

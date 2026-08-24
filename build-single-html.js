@@ -42,6 +42,7 @@ ${css}
 <body>
 <div id="app" aria-live="polite"></div>
 <div id="toast" class="toast" role="status"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const __LOGO__ = "data:image/png;base64,${logoB64}";
 ${i18n}

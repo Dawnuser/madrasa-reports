@@ -247,7 +247,7 @@
         '<form class="card login-card" id="login-form">' +
           '<div class="field">' +
             '<label for="uid">' + t('userId') + '</label>' +
-            '<input id="uid" name="uid" autocomplete="username" placeholder="qari1" required>' +
+            '<input id="uid" name="uid" autocomplete="username" inputmode="email" placeholder="you@madrasa.com" required>' +
           '</div>' +
           '<div class="field">' +
             '<label for="pwd">' + t('password') + '</label>' +
@@ -1760,6 +1760,7 @@
     input.style.display = 'none';
     document.body.appendChild(input);
     applyLangTheme();
+    if (DB.restoreSession) await DB.restoreSession();
     await route();
   })();
 })();

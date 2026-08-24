@@ -247,6 +247,17 @@ const DB = (function () {
       const { data, error } = await c.from('students').select('*').eq('class_id', classId).order('name');
       return (data || []).map(mapStudent);
     },
+    async getStudentsByClass(ids) {
+      const c = client();
+      if (!ids || !ids.length) return {};
+      const { data } = await c.from('students').select('*').in('class_id', ids).order('name');
+      const out = {};
+      (data || []).forEach(function (r) {
+        if (!out[r.class_id]) out[r.class_id] = [];
+        out[r.class_id].push(mapStudent(r));
+      });
+      return out;
+    },
     async getStudent(id) {
       const c = client();
       const { data, error } = await c.from('students').select('*').eq('id', id).maybeSingle();
@@ -370,8 +381,42 @@ const DB = (function () {
     },
     async getMonthReports(studentId, year, month) {
       const c = client();
-      const prefix = year + '-' + String(month).padStart(2, '0');
-      const { data } = await c.from('reports').select('*').eq('student_id', studentId).like('date', prefix + '-%');
+      const y = String(year);
+      const m = String(month).padStart(2, '0');
+      const { data } = await c.from('reports').select('*').eq('student_id', studentId)
+        .gte('date', y + '-' + m + '-01').lte('date', y + '-' + m + '-31');
+      const out = {};
+      (data || []).forEach(function (r) { out[dstr(new Date(r.date))] = mapReport(r); });
+      return out;
+    },
+    /* batch helpers — collapse N+1 report queries into single calls */
+    async getDayReports(studentIds, ds) {
+      const c = client();
+      if (!studentIds || !studentIds.length) return {};
+      const { data } = await c.from('reports').select('*').in('student_id', studentIds).eq('date', ds);
+      const out = {};
+      (data || []).forEach(function (r) { out[r.student_id] = mapReport(r); });
+      return out;
+    },
+    async getMonthReportsForStudents(studentIds, year, month) {
+      const c = client();
+      if (!studentIds || !studentIds.length) return {};
+      const y = String(year);
+      const m = String(month).padStart(2, '0');
+      const { data } = await c.from('reports').select('*').in('student_id', studentIds)
+        .gte('date', y + '-' + m + '-01').lte('date', y + '-' + m + '-31');
+      const out = {};
+      (data || []).forEach(function (r) {
+        const ds = dstr(new Date(r.date));
+        if (!out[r.student_id]) out[r.student_id] = {};
+        out[r.student_id][ds] = mapReport(r);
+      });
+      return out;
+    },
+    async getReportRange(studentId, fromDs, toDs) {
+      const c = client();
+      const { data } = await c.from('reports').select('*').eq('student_id', studentId)
+        .gte('date', fromDs).lte('date', toDs);
       const out = {};
       (data || []).forEach(function (r) { out[dstr(new Date(r.date))] = mapReport(r); });
       return out;
@@ -444,17 +489,16 @@ const DB = (function () {
     /* full dump (export) */
     async getAllData() {
       const classes = await api.getClasses();
+      const byClass = await api.getStudentsByClass(classes.map(function (c) { return c.id; }));
       const students = [];
-      for (const cls of classes) {
-        const ss = await api.getStudents(cls.id);
-        for (const s of ss) students.push(s);
-      }
+      (Object.keys(byClass)).forEach(function (cid) { students.push.apply(students, byClass[cid]); });
       const users = await api.getUsers();
       const fees = await api.getAllFees();
       const reports = {};
-      for (const s of students) {
-        const { data } = await client().from('reports').select('*').eq('student_id', s.id);
-        (data || []).forEach(function (r) { reports[s.id + '|' + dstr(new Date(r.date))] = mapReport(r); });
+      const ids = students.map(function (s) { return s.id; });
+      if (ids.length) {
+        const { data } = await client().from('reports').select('*').in('student_id', ids);
+        (data || []).forEach(function (r) { reports[r.student_id + '|' + dstr(new Date(r.date))] = mapReport(r); });
       }
       return { classes: classes, users: users, students: students, reports: reports, fees: fees, weekly: {}, monthly: {} };
     },

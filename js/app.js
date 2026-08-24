@@ -644,7 +644,7 @@
             '<span style="margin-inline-start:auto;color:var(--gold)">&rsaquo;</span>' +
           '</a>' +
           '<a class="class-row" href="#/trash">' +
-            '<span class="avatar">🗑</span>' +
+            '<span class="avatar">🗃</span>' +
             '<span><span class="nm">' + t('trash') + '</span><br><span class="sub">' + t('trashSub') + '</span></span>' +
             '<span style="margin-inline-start:auto;color:var(--gold)">&rsaquo;</span>' +
           '</a>' +
@@ -757,11 +757,10 @@
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('principal') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">🗑 ' + esc(t('trash')) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">🗃 ' + esc(t('trash')) + '</h1>' +
         '<div class="meta" style="margin-bottom:16px">' + t('trashSub') + '</div>' +
         (items.length === 0 ?
           '<div class="empty-note">' + t('trashEmpty') + '</div>' :
-          (items.length > 1 ? '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap" class="no-print"><button class="btn btn-danger btn-sm" data-action="empty-trash">🗑 ' + t('emptyTrash') + '</button></div>' : '') +
             items.map(function (item) {
               const p = item.payload;
               const label = item.kind === 'class' ? (p.cls ? esc(p.cls.name) : '?') : (p.st ? esc(p.st.name) : '?');
@@ -769,7 +768,7 @@
               return (
                 '<div class="class-card" style="margin-bottom:10px">' +
                   '<div class="class-row" style="flex:1;padding:14px">' +
-                    '<span class="avatar" style="background:var(--danger);color:#fff">' + (item.kind === 'class' ? '🏫' : '👤') + '</span>' +
+                    '<span class="avatar" style="background:var(--ink-soft);color:#fff">' + (item.kind === 'class' ? '🏫' : '👤') + '</span>' +
                     '<span>' +
                       '<span class="nm">' + label + '</span><br>' +
                       '<span class="sub">' + sub + ' · ' + t('deletedOn') + ' ' + fmtDate(item.deletedAt) + '</span>' +
@@ -777,7 +776,6 @@
                   '</div>' +
                   '<div class="row-actions" style="padding:10px">' +
                     '<button class="icon-mini" data-action="restore-item" data-id="' + item.id + '" title="' + t('restore') + '">↩</button>' +
-                    '<button class="icon-mini danger" data-action="purge-item" data-id="' + item.id + '" title="' + t('deleteForever') + '">✕</button>' +
                   '</div>' +
                 '</div>'
               );
@@ -791,15 +789,6 @@
         if (r.ok) { toast(t('restoreOk')); renderTrash(session); }
         else toast(r.error === 'exists' ? (I18N.get() === 'ur' ? 'یہ آئٹم پہلے سے موجود ہے' : 'Item already exists') : (I18N.get() === 'ur' ? 'بحال نہیں ہو سکا' : 'Could not restore'));
       });
-    };
-    viewActions['purge-item'] = function (btn) {
-      const id = btn.getAttribute('data-id');
-      if (!confirm(t('deleteForeverConfirm'))) return;
-      DB.purgeTrashItem(id).then(function () { renderTrash(session); });
-    };
-    viewActions['empty-trash'] = function () {
-      if (!confirm(t('emptyTrashConfirm'))) return;
-      DB.emptyTrash().then(function () { renderTrash(session); });
     };
   }
 

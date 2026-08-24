@@ -220,10 +220,14 @@ const DB = (function () {
       const { data: studs } = await c.from('students').select('*').eq('class_id', id);
       const students = (studs || []).map(mapStudent);
       const studentIds = students.map(function (s) { return s.id; });
-      let reports = {}, fees = {};
+      let reports = {}, weekly = {}, monthly = {}, fees = {};
       if (studentIds.length) {
         const { data: repRows } = await c.from('reports').select('*').in('student_id', studentIds);
         (repRows || []).forEach(function (r) { reports[r.student_id + '|' + dstr(new Date(r.date))] = mapReport(r); });
+        const { data: wkRows } = await c.from('weekly_reports').select('*').in('student_id', studentIds);
+        (wkRows || []).forEach(function (r) { weekly[r.student_id + '|' + r.week_key] = r.data; });
+        const { data: moRows } = await c.from('monthly_reports').select('*').in('student_id', studentIds);
+        (moRows || []).forEach(function (r) { monthly[r.student_id + '|' + r.ym] = r.data; });
         const { data: fsRows } = await c.from('fee_settings').select('*').in('student_id', studentIds);
         const { data: fpRows } = await c.from('fee_payments').select('*').in('student_id', studentIds);
         (fsRows || []).forEach(function (f) { if (!fees[f.student_id]) fees[f.student_id] = { amount: f.amount, payments: {} }; });
@@ -235,7 +239,7 @@ const DB = (function () {
       }
       await api.pushTrash({
         kind: 'class',
-        payload: { cls: { id: id, name: cls.name }, students: students, reports: reports, fees: fees }
+        payload: { cls: { id: id, name: cls.name }, students: students, reports: reports, weekly: weekly, monthly: monthly, fees: fees }
       });
       await c.from('classes').delete().eq('id', id);
       return { ok: true };
@@ -292,9 +296,13 @@ const DB = (function () {
       const c = client();
       const st = await api.getStudent(id);
       if (!st) return { ok: false };
-      let reports = {};
+      let reports = {}, weekly = {}, monthly = {};
       const { data: repRows } = await c.from('reports').select('*').eq('student_id', id);
       (repRows || []).forEach(function (r) { reports[r.student_id + '|' + dstr(new Date(r.date))] = mapReport(r); });
+      const { data: wkRows } = await c.from('weekly_reports').select('*').eq('student_id', id);
+      (wkRows || []).forEach(function (r) { weekly[r.student_id + '|' + r.week_key] = r.data; });
+      const { data: moRows } = await c.from('monthly_reports').select('*').eq('student_id', id);
+      (moRows || []).forEach(function (r) { monthly[r.student_id + '|' + r.ym] = r.data; });
       const { data: f } = await c.from('fee_settings').select('*').eq('student_id', id).maybeSingle();
       const fees = f ? { amount: f.amount, payments: {} } : null;
       const { data: fpRows } = await c.from('fee_payments').select('*').eq('student_id', id);
@@ -303,7 +311,7 @@ const DB = (function () {
           fees.payments[ymStr(new Date(p.month))] = { paid: p.paid, markedBy: p.marked_by, markedAt: p.marked_at ? Date.parse(p.marked_at) : null };
         });
       }
-      await api.pushTrash({ kind: 'student', payload: { st: st, reports: reports, fees: fees } });
+      await api.pushTrash({ kind: 'student', payload: { st: st, reports: reports, weekly: weekly, monthly: monthly, fees: fees } });
       await c.from('students').delete().eq('id', id);
       return { ok: true };
     },
@@ -322,6 +330,13 @@ const DB = (function () {
       const { data } = await c.from('trash').select('*').order('deleted_at', { ascending: false });
       return (data || []).map(function (r) {
         return { id: r.tid, kind: r.kind, deletedAt: Date.parse(r.deleted_at), payload: r.payload };
+      });
+    },
+    async getTrashRaw() {
+      const c = client();
+      const { data } = await c.from('trash').select('*');
+      return (data || []).map(function (r) {
+        return { tid: r.tid, kind: r.kind, payload: r.payload, deleted_at: r.deleted_at };
       });
     },
     async restoreTrashItem(tid) {
@@ -345,6 +360,14 @@ const DB = (function () {
           const parts = k.split('|');
           await c.from('reports').upsert(Object.assign({ student_id: parts[0], date: parts[1] }, unmapReport(p.reports[k])), { onConflict: 'student_id,date' });
         }
+        for (const k of Object.keys(p.weekly || {})) {
+          const parts = k.split('|');
+          await c.from('weekly_reports').upsert({ student_id: parts[0], week_key: parts[1], data: p.weekly[k] }, { onConflict: 'student_id,week_key' });
+        }
+        for (const k of Object.keys(p.monthly || {})) {
+          const parts = k.split('|');
+          await c.from('monthly_reports').upsert({ student_id: parts[0], ym: parts[1], data: p.monthly[k] }, { onConflict: 'student_id,ym' });
+        }
         for (const sid of Object.keys(p.fees || {})) {
           const f = p.fees[sid];
           for (const ym of Object.keys(f.payments || {})) {
@@ -361,6 +384,14 @@ const DB = (function () {
           const parts = k.split('|');
           await c.from('reports').upsert(Object.assign({ student_id: parts[0], date: parts[1] }, unmapReport(p.reports[k])), { onConflict: 'student_id,date' });
         }
+        for (const k of Object.keys(p.weekly || {})) {
+          const parts = k.split('|');
+          await c.from('weekly_reports').upsert({ student_id: parts[0], week_key: parts[1], data: p.weekly[k] }, { onConflict: 'student_id,week_key' });
+        }
+        for (const k of Object.keys(p.monthly || {})) {
+          const parts = k.split('|');
+          await c.from('monthly_reports').upsert({ student_id: parts[0], ym: parts[1], data: p.monthly[k] }, { onConflict: 'student_id,ym' });
+        }
         if (p.fees) {
           for (const ym of Object.keys(p.fees.payments || {})) {
             const pay = p.fees.payments[ym];
@@ -369,16 +400,6 @@ const DB = (function () {
         }
       }
       await c.from('trash').delete().eq('tid', tid);
-      return { ok: true };
-    },
-    async purgeTrashItem(tid) {
-      const c = client();
-      await c.from('trash').delete().eq('tid', tid);
-      return { ok: true };
-    },
-    async emptyTrash() {
-      const c = client();
-      await c.from('trash').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       return { ok: true };
     },
 
@@ -531,7 +552,7 @@ const DB = (function () {
         const { data: moRows } = await client().from('monthly_reports').select('*').in('student_id', ids);
         (moRows || []).forEach(function (r) { monthly[r.student_id + '|' + r.ym] = r.data; });
       }
-      return { classes: classes, users: users, students: students, reports: reports, fees: fees, weekly: weekly, monthly: monthly };
+      return { classes: classes, users: users, students: students, reports: reports, fees: fees, weekly: weekly, monthly: monthly, trash: await api.getTrashRaw() };
     },
 
     /* full restore (import) — inserts into supabase */
@@ -572,6 +593,11 @@ const DB = (function () {
       for (const k of Object.keys(data.monthly || {})) {
         const parts = k.split('|');
         await c.from('monthly_reports').upsert({ student_id: parts[0], ym: parts[1], data: data.monthly[k] }, { onConflict: 'student_id,ym' });
+      }
+      for (const t of (data.trash || [])) {
+        const { data: ex } = await c.from('trash').select('tid').eq('tid', t.tid);
+        if (ex && ex.length) continue;
+        await c.from('trash').insert({ tid: t.tid, kind: t.kind, payload: t.payload, deleted_at: t.deleted_at || undefined });
       }
       return { ok: true };
     },

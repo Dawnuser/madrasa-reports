@@ -750,6 +750,7 @@ const I18N = (function () {
       myStudents: 'My Students',
       sendReports: 'Send WhatsApp Reports',
       viewHistory: 'History',
+      reportCard: 'Report Card',
       back: 'Back',
       save: 'Save Report',
       saveOk: 'Save',
@@ -777,6 +778,8 @@ const I18N = (function () {
       month: 'Month',
       historyTitle: 'Report History',
       noReports: 'No reports for this month.',
+      progressChart: 'Progress — pages per day',
+      draftSaved: 'Draft saved',
       noReportForDay: 'No report written for this day yet. Use the form below to write today\'s report.',
       reportFor: 'Report for',
       principal: 'Principal',
@@ -812,6 +815,12 @@ const I18N = (function () {
       unpaid: 'Unpaid',
       markPaid: 'Mark Paid',
       markUnpaid: 'Mark Unpaid',
+      feeSummary: 'Fee Summary',
+      totalFees: 'Total Fees',
+      collected: 'Collected',
+      outstanding: 'Outstanding',
+      studentsWithFees: 'students with fees',
+      unit: 'OMR',
       noStudentsPaid: 'No students marked paid this month.',
       feeHistory: 'Fee History',
       feeHistorySub: 'Last 12 months',
@@ -930,6 +939,7 @@ trash: 'Archive',
       myStudents: 'میرے طلباء',
       sendReports: 'واٹس ایپ رپورٹس بھیجیں',
       viewHistory: 'ریکارڈ',
+      reportCard: 'رپورٹ کارڈ',
       back: 'واپس',
       save: 'رپورٹ محفوظ کریں',
       saveOk: 'محفوظ کریں',
@@ -955,8 +965,10 @@ trash: 'Archive',
       today: 'آج',
       yesterday: 'کل',
       month: 'مہینہ',
-      historyTitle: 'رپورٹ ریکارڈ',
+historyTitle: 'رپورٹ ریکارڈ',
       noReports: 'اس مہینے کی کوئی رپورٹ نہیں۔',
+      progressChart: 'پیشرفت — یومیہ صفحات',
+      draftSaved: 'مسودہ محفوظ',
       noReportForDay: 'آج کے لیے ابھی کوئی رپورٹ نہیں لکھی گئی۔ نیچے دیے گئے فارم سے آج کی رپورٹ لکھیں۔',
       reportFor: 'رپورٹ برائے',
       principal: 'ناظم',
@@ -992,6 +1004,12 @@ trash: 'Archive',
       unpaid: 'ادا نہیں',
       markPaid: 'ادا شدہ لکھیں',
       markUnpaid: 'ادا نہیں لکھیں',
+      feeSummary: 'فیس کا خلاصہ',
+      totalFees: 'کل فیس',
+      collected: 'وصول شدہ',
+      outstanding: 'باقی',
+      studentsWithFees: 'طلاب جن کی فیس مقرر ہے',
+      unit: 'OMR',
       noStudentsPaid: 'اس مہینے کسی طالب علم نے فیس ادا نہیں کی۔',
       feeHistory: 'فیس ریکارڈ',
       feeHistorySub: 'پچھلے ۱۲ مہینے',
@@ -1110,6 +1128,7 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       myStudents: 'طلابي',
       sendReports: 'إرسال تقارير واتساب',
       viewHistory: 'السجل',
+      reportCard: 'بطاقة التقرير',
       back: 'رجوع',
       save: 'حفظ التقرير',
       saveOk: 'حفظ',
@@ -1135,8 +1154,10 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       today: 'اليوم',
       yesterday: 'أمس',
       month: 'الشهر',
-      historyTitle: 'سجل التقارير',
+historyTitle: 'سجل التقارير',
       noReports: 'لا توجد تقارير لهذا الشهر.',
+      progressChart: 'التقدم — صفحات كل يوم',
+      draftSaved: 'مسودة محفوظة',
       noReportForDay: 'لم يُكتب تقرير لهذا اليوم بعد. استخدم النموذج أدناه لكتابة تقرير اليوم.',
       reportFor: 'تقرير عن',
       principal: 'الناظم',
@@ -1172,6 +1193,12 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       unpaid: 'غير مدفوع',
       markPaid: 'تسجيل مدفوع',
       markUnpaid: 'تسجيل غير مدفوع',
+      feeSummary: 'ملخص الرسوم',
+      totalFees: 'إجمالي الرسوم',
+      collected: 'المحصّل',
+      outstanding: 'المتبقي',
+      studentsWithFees: 'طلاب محددون برسوم',
+      unit: 'ريال',
       noStudentsPaid: 'لا يوجد طلاب مسجلون كمدفوعين هذا الشهر.',
       feeHistory: 'سجل الرسوم',
       feeHistorySub: 'آخر 12 شهراً',
@@ -2265,7 +2292,28 @@ const DB = (function () {
   /* ---------- STUDENT FORM ---------- */
   let draft = null;
 
+  function draftKey(sid, ds) { return 'md-draft:' + sid + ':' + ds; }
+
+  function loadDraft(sid, ds) {
+    try {
+      const raw = localStorage.getItem(draftKey(sid, ds));
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function saveDraft(d) {
+    if (!d) return;
+    try { localStorage.setItem(draftKey(d.sid, d.ds), JSON.stringify(d)); }
+    catch (e) { /* storage full/unavailable — ignore */ }
+  }
+
+  function clearDraft(sid, ds) {
+    try { localStorage.removeItem(draftKey(sid, ds)); } catch (e) { /* ignore */ }
+  }
+
   function buildDraft(sid, ds, existing) {
+    const saved = loadDraft(sid, ds);
+    if (saved && saved.sid === sid && saved.ds === ds) return saved;
     const r = existing || {};
     return {
       sid: sid, ds: ds,
@@ -2293,6 +2341,29 @@ const DB = (function () {
     if (mp) draft.manzil = mp.getAttribute('data-v');
     const cm = g('f-comment');
     if (cm) draft.comment = cm.value;
+    saveDraft(draft);
+  }
+
+  function wireDraftAutosave() {
+    const ids = ['sw-sabaq', 'sw-sabqi', 'sw-manzil', 'f-pages', 'f-lines', 'f-comment'];
+    ids.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('change', function () {
+        if (draft && draft.sid) {
+          captureWidgets();
+          const badge = document.getElementById('draft-badge');
+          if (badge) badge.style.display = 'inline-flex';
+        }
+      });
+      el.addEventListener('input', function () {
+        if (draft && draft.sid) {
+          captureWidgets();
+          const badge = document.getElementById('draft-badge');
+          if (badge) badge.style.display = 'inline-flex';
+        }
+      });
+    });
   }
 
   async function renderStudentForm(session, sid, ds) {
@@ -2363,10 +2434,11 @@ const DB = (function () {
               '<textarea id="f-comment" rows="2" placeholder="' + t('commentHint') + '"' + (locked ? ' disabled' : '') + '>' + esc(rep.comment || '') + '</textarea>' +
             '</div>' +
           '</div>' : '') +
-        '<div style="display:flex;gap:10px;margin-top:16px">' +
+        '<div style="display:flex;gap:10px;margin-top:16px;align-items:center">' +
           (!locked ? '<button class="btn btn-primary btn-block" data-action="save-report">' + t('save') + '</button>' : '') +
           '<a class="btn btn-ghost" href="#/history/' + sid + '">' + t('viewHistory') + '</a>' +
         '</div>' +
+        '<div id="draft-badge" style="display:none;margin-top:10px;align-items:center;gap:6px;color:var(--gold);font-size:.8rem">💾 ' + t('draftSaved') + '</div>' +
       '</main>';
 
     changeActions['f-date'] = function (el) {
@@ -2385,6 +2457,7 @@ const DB = (function () {
         document.getElementById('reveal-manzil').classList.toggle('open', this.checked);
       });
     }
+    wireDraftAutosave();
 
     viewActions['set-present'] = function (btn) {
       captureWidgets();
@@ -2396,6 +2469,9 @@ const DB = (function () {
       app.querySelectorAll('[data-action="set-manzil"]').forEach(function (b) {
         b.classList.toggle('on', b === btn);
       });
+      saveDraft(draft);
+      const badge = document.getElementById('draft-badge');
+      if (badge) badge.style.display = 'inline-flex';
     };
     viewActions['save-report'] = function () {
       captureWidgets();
@@ -2415,6 +2491,7 @@ const DB = (function () {
       }
       DB.saveReport(sid, ds, rep2).then(function (res) {
         if (res && res.ok === false) { toast(t('saveFailed')); return; }
+        clearDraft(sid, ds);
         draft = null;
         toast(t('saved'));
         nav('dashboard');
@@ -2428,6 +2505,34 @@ const DB = (function () {
       out += '<option value="' + i + '"' + (selected === i ? ' selected' : '') + '>' + num(i) + '</option>';
     }
     return out;
+  }
+
+  function progressChart(rows, y, m) {
+    const days = [];
+    for (let i = 1; i <= 31; i++) {
+      const ds = y + '-' + String(m).padStart(2, '0') + '-' + String(i).padStart(2, '0');
+      days.push(ds);
+    }
+    const vals = days.map(function (ds) {
+      const r = rows.find(function (x) { return x.ds === ds; });
+      if (!r || !r.r.present || !r.r.sabaqDone) return 0;
+      return (r.r.pages || 0) + (r.r.lines > 0 ? r.r.lines / 20 : 0);
+    });
+    const max = Math.max.apply(null, vals);
+    if (!max) return '';
+    const W = 260, H = 80, PAD = 4, BW = Math.max(4, Math.floor((W - PAD * 2) / vals.length));
+    let bars = '';
+    vals.forEach(function (v, i) {
+      const bh = v > 0 ? Math.max(2, Math.round((v / max) * (H - PAD * 2))) : 0;
+      const x = PAD + i * BW;
+      const yb = H - PAD - bh;
+      bars += '<rect x="' + x + '" y="' + yb + '" width="' + Math.max(1, BW - 1) + '" height="' + bh + '" fill="' + (v > 0 ? '#0E6B3C' : '#e0d8c8') + '" rx="1"/>';
+    });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:320px;display:block;margin:0 auto">' +
+      '<text x="2" y="12" font-size="9" fill="#888">' + (Math.round(max * 10) / 10) + '</text>' +
+      '<text x="2" y="' + (H - 2) + '" font-size="9" fill="#888">0</text>' +
+      bars +
+      '</svg>';
   }
 
   /* ---------- HISTORY ---------- */
@@ -2479,6 +2584,8 @@ const DB = (function () {
       return parts.join('+') || '—';
     };
 
+    const chart = progressChart(rows, sel.y, sel.m);
+
     app.innerHTML = '' +
       topbar(true) +
       '<main class="app-main">' +
@@ -2486,12 +2593,17 @@ const DB = (function () {
         '<h1 class="h-display" style="font-size:1.3rem">' + esc(student.name) + '</h1>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
           '<a class="btn btn-ghost btn-sm" href="#/attendance/' + sid + '">📅 ' + t('attendance') + '</a>' +
+          '<button class="btn btn-ghost btn-sm" data-action="report-card">🖨 ' + t('reportCard') + '</button>' +
         '</div>' +
         '<div class="stat-row">' +
           '<div class="stat"><div class="n">' + num(presentCount) + '</div><div class="l">' + t('presentCount') + '</div></div>' +
           '<div class="stat"><div class="n">' + num(absentCount) + '</div><div class="l">' + t('absentDays') + '</div></div>' +
           '<div class="stat"><div class="n">' + num(rows.length) + '</div><div class="l">' + t('totalDays') + '</div></div>' +
         '</div>' +
+        (chart ? '<div class="card" style="margin-top:14px;padding:14px">' +
+          '<div class="section-title" style="margin-bottom:6px">📈 ' + t('progressChart') + '</div>' +
+          chart +
+        '</div>' : '') +
         '<div class="field">' +
           '<label>' + t('month') + '</label>' +
           '<select id="f-month" data-change="f-month">' +
@@ -2530,6 +2642,9 @@ const DB = (function () {
       if (!canEdit) return;
       const tr = btn.closest('[data-row]');
       if (tr) nav('student/' + sid + '?date=' + tr.getAttribute('data-row'));
+    };
+    viewActions['report-card'] = function () {
+      exportStudentReportCard(sid);
     };
   }
 
@@ -2978,6 +3093,14 @@ const DB = (function () {
     let cid = (q && q.cid) || (classes[0] ? classes[0].id : '');
     const students = cid ? await DB.getStudents(cid) : [];
 
+    let totalAmt = 0, totalPaid = 0, totalCount = 0;
+    students.forEach(function (s) {
+      const f = fees[s.id] || {};
+      if (f.amount != null) { totalAmt += f.amount; totalCount++; }
+      if (f.payments && f.payments[ym] && f.payments[ym].paid) totalPaid += (f.amount || 0);
+    });
+    const totalOut = totalAmt - totalPaid;
+
     app.innerHTML = '' +
       topbar(true) +
       '<main class="app-main">' +
@@ -3003,6 +3126,15 @@ const DB = (function () {
               }).join('') +
             '</select></div>' +
         '</div>' +
+        (students.length ? '<div class="card" style="margin-top:14px;padding:14px">' +
+          '<div class="section-title" style="margin-bottom:8px">💰 ' + t('feeSummary') + ' — ' + monthLabel(sel.y, sel.m) + '</div>' +
+          '<div class="stat-row">' +
+            '<div class="stat"><div class="n">' + num(totalAmt) + '</div><div class="l">' + t('totalFees') + '</div></div>' +
+            '<div class="stat"><div class="n" style="color:var(--ok)">' + num(totalPaid) + '</div><div class="l">' + t('collected') + '</div></div>' +
+            '<div class="stat"><div class="n" style="color:' + (totalOut > 0 ? 'var(--bad)' : 'var(--ok)') + '">' + num(totalOut) + '</div><div class="l">' + t('outstanding') + '</div></div>' +
+          '</div>' +
+          '<div class="meta" style="margin-top:6px">' + num(totalCount) + ' ' + t('studentsWithFees') + ' · ' + t('unit') + '</div>' +
+        '</div>' : '') +
         '<div class="section-title">' + t('students') + '</div>' +
         (students.length === 0 ?
           '<div class="empty-note">' + t('noStudents') + '</div>' :
@@ -3617,6 +3749,97 @@ const DB = (function () {
       });
     });
     printHtml('All Classes — Reports', rows, '<tr><th>Class</th><th>Student</th><th>Date</th><th>Status</th><th>Sabaq</th><th>Sabqi</th><th>Manzil</th></tr>');
+  }
+
+  async function exportStudentReportCard(sid) {
+    const all = await DB.getAllData();
+    const st = all.students.find(function (s) { return s.id === sid; });
+    if (!st) return;
+    const cls = all.classes.find(function (c) { return c.id === st.classId; });
+    const reps = [];
+    let presentCount = 0, absentCount = 0, sabaqDays = 0, sabqiDays = 0, manzilDays = 0, totalPages = 0, totalLines = 0;
+    Object.keys(all.reports).forEach(function (k) {
+      if (k.indexOf(sid + '|') !== 0) return;
+      const r = all.reports[k];
+      reps.push({ ds: k.split('|')[1], r: r });
+      if (r.present) { presentCount++; if (r.sabaqDone) { sabaqDays++; totalPages += r.pages || 0; totalLines += r.lines || 0; } if (r.sabqiDone) sabqiDays++; if (r.manzilDone) manzilDays++; }
+      else absentCount++;
+    });
+    reps.sort(function (a, b) { return a.ds < b.ds ? -1 : 1; });
+    const fees = all.fees[sid];
+    const nowD = new Date();
+    const curYm = ymOf(nowD.getFullYear(), nowD.getMonth() + 1);
+    const curPaid = fees && fees.payments && fees.payments[curYm] ? fees.payments[curYm].paid : null;
+
+    let repRows = '';
+    reps.forEach(function (x) {
+      const r = x.r;
+      repRows += '<tr>' +
+        '<td>' + x.ds + '</td>' +
+        '<td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
+        '<td>' + (r.present && r.sabaqDone ? (r.pages ? r.pages + 'p' : '') + (r.lines ? '+' + r.lines + 'l' : '') : '—') + '</td>' +
+        '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
+        '<td>' + (r.present ? (r.manzilDone ? manzilEn(r) : '—') : '—') + '</td>' +
+        '<td>' + (r.comment ? esc(r.comment) : '—') + '</td>' +
+      '</tr>';
+    });
+
+    const w = window.open('', '_blank');
+    w.document.write('<!DOCTYPE html><html><head><title>' + esc(st.name) + ' — Report Card</title><style>' +
+      'body{font-family:Georgia,serif;color:#111;padding:26px 30px}' +
+      '.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0E6B3C;padding-bottom:8px}' +
+      'h1{font-size:22px;margin:0;color:#0E6B3C}' +
+      '.sub{font-size:12px;color:#555;margin-top:4px}' +
+      '.right{font-size:11px;color:#666;text-align:right}' +
+      'h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:#0E6B3C;border-bottom:1px solid #ccc;padding-bottom:3px;margin:18px 0 8px}' +
+      '.grid{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}' +
+      '.g{font-size:12px}.g b{display:block;font-size:15px}' +
+      '.box{border:1px solid #ccc;padding:8px 10px;border-radius:4px;font-size:12px;display:flex;justify-content:space-between;margin-top:6px}' +
+      'table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11px}' +
+      'th,td{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#f0ead7}' +
+      '.absent{background:#fdf0f0}' +
+      '.foot{margin-top:20px;font-size:10px;color:#888;text-align:center;border-top:1px solid #ddd;padding-top:6px}' +
+      '@media print{.no-print{display:none}}' +
+      '</style></head><body>' +
+      '<div class="head"><div>' +
+        '<h1>Madrasa Dar ul Ma\'arij</h1>' +
+        '<div class="sub">Report Card — ' + esc(cls.name) + '</div>' +
+      '</div><div class="right">Generated: ' + new Date().toLocaleDateString() + '</div></div>' +
+
+      '<h2>Student</h2>' +
+      '<div class="grid">' +
+        '<div class="g"><b>' + esc(st.name) + '</b>' + 'Student Name</div>' +
+        '<div class="g"><b>' + st.para + '</b>Current Para</div>' +
+        '<div class="g"><b>' + (st.currentPage || '—') + '</b>Current Page</div>' +
+        '<div class="g"><b>' + (st.fullTime ? 'Full-time' : 'Part-time') + '</b>Type</div>' +
+        '<div class="g"><b>' + esc(st.parentName || '—') + '</b>Parent</div>' +
+        '<div class="g"><b>' + esc(st.parentNumber || '—') + '</b>Contact</div>' +
+      '</div>' +
+
+      '<h2>Attendance & Memorization</h2>' +
+      '<div class="grid">' +
+        '<div class="g"><b>' + presentCount + '</b>Present Days</div>' +
+        '<div class="g"><b>' + absentCount + '</b>Absent Days</div>' +
+        '<div class="g"><b>' + (presentCount + absentCount) + '</b>Total Days</div>' +
+        '<div class="g"><b>' + sabaqDays + '</b>Sabaq Days</div>' +
+        '<div class="g"><b>' + sabqiDays + '</b>Sabqi Days</div>' +
+        '<div class="g"><b>' + manzilDays + '</b>Manzil Days</div>' +
+        '<div class="g"><b>' + totalPages + 'p + ' + totalLines + 'l</b>Total Memorized</div>' +
+      '</div>' +
+
+      (fees ? '<h2>Fees (' + (fees.amount != null ? fees.amount + ' OMR' : 'not set') + ')</h2>' +
+        '<div class="box"><span>This month (current):</span><b>' + (curPaid === null ? 'Not marked' : curPaid ? 'PAID ✓' : 'Unpaid ✗') + '</b></div>' : '') +
+
+      '<h2>Daily Records' + (reps.length ? ' (' + reps.length + ')' : '') + '</h2>' +
+      (reps.length === 0 ? '<div style="font-size:12px;color:#666">No daily reports recorded.</div>' :
+      '<table><thead><tr><th>Date</th><th>Status</th><th>Sabaq</th><th>Sabqi</th><th>Manzil</th><th>Comment</th></tr></thead><tbody>' +
+      repRows + '</tbody></table>') +
+
+      '<div class="foot">Madrasa Dar ul Ma\'arij — Student Report Card</div>' +
+      '</body></html>');
+    w.document.close();
+    setTimeout(function () { w.print(); }, 300);
+    toast(I18N.t('reportCard'));
   }
 
   /* ---------- Export Data (JSON dump for the database) ---------- */

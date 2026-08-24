@@ -275,10 +275,11 @@
     const cls = await DB.getClass(session.classId);
     const students = await DB.getStudents(session.classId);
     const today = todayDs();
+    const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), today);
     let todayReportCount = 0, presentCount = 0;
     const hasReports = {};
     for (const s of students) {
-      const rep = await DB.getReport(s.id, today);
+      const rep = dayReps[s.id];
       if (rep) { todayReportCount++; if (rep.present) presentCount++; hasReports[s.id] = true; }
       else hasReports[s.id] = false;
     }
@@ -376,6 +377,7 @@
         '<h1 class="h-display" style="font-size:1.3rem">' + esc(student.name) + '</h1>' +
         '<div class="pill" style="margin-top:8px">' + t('para') + ' ' + num(student.para) + ' · ' + t('category') + ' ' + esc(student.category) + '</div>' +
         (locked ? '<div class="card" style="margin-top:14px;border-color:var(--bad)">' + t('locked') + '</div>' : '') +
+        (!existing ? '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('noReportForDay') + '</div>' : '') +
         '<div class="card" style="margin-top:14px">' +
           '<div class="field">' +
             '<label for="f-date">' + t('date') + '</label>' +
@@ -642,9 +644,10 @@
     const t = I18N.t;
     if (session.role !== 'principal') { redirect('dashboard'); return; }
     const classes = await DB.getClasses();
+    const studentsByClass = await DB.getStudentsByClass(classes.map(function (c) { return c.id; }));
     const counts = {};
     for (const c of classes) {
-      counts[c.id] = (await DB.getStudents(c.id)).length;
+      counts[c.id] = (studentsByClass[c.id] || []).length;
     }
 
     app.innerHTML = '' +
@@ -1354,9 +1357,10 @@
     if (q && q.wk) wk = q.wk;
 
     const auto = { newSafa: 0, sabaqDays: 0 };
+    const weekReps = await DB.getReportRange(sid, wk, DB.addDays(wk, 6));
     for (let i = 0; i < 7; i++) {
       const ds = DB.addDays(wk, i);
-      const rep = await DB.getReport(sid, ds);
+      const rep = weekReps[ds];
       if (rep && rep.present && rep.sabaqDone) {
         auto.newSafa += (rep.pages || 0);
         auto.sabaqDays++;
@@ -1506,8 +1510,9 @@
     const today = todayDs();
 
     const gridRows = [];
+    const monthReps = await DB.getMonthReportsForStudents(students.map(function (s) { return s.id; }), sel.y, sel.m);
     for (const s of students) {
-      const reps = await DB.getMonthReports(s.id, sel.y, sel.m);
+      const reps = monthReps[s.id] || {};
       let present = 0, absent = 0;
       let cells = '';
       for (let d = 1; d <= daysInMonth; d++) {

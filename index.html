@@ -1310,6 +1310,14 @@ const DB = (function () {
   const SESSION_KEY = 'mdm_session';
   let memSession = null;
 
+  /* fee defaults — part time 18, full time 25 (OMR) */
+  const PART_TIME_FEE = 18;
+  const FULL_TIME_FEE = 25;
+  const LEGACY_SEED_FEE = 5;
+  function defaultFee(st) {
+    return st && st.fullTime ? FULL_TIME_FEE : PART_TIME_FEE;
+  }
+
   const DEFAULT_QARI_PASS = 'qari123';
   const CATEGORIES = { A: '10', B: '20', C: '30', D: '40' };
 
@@ -1403,7 +1411,7 @@ const DB = (function () {
     /* fees — principal sets amount per student; payments keyed by YYYY-MM */
     const fees = {};
     students.forEach(function (st) {
-      fees[st.id] = { amount: 5, payments: {} };
+      fees[st.id] = { amount: defaultFee(st), payments: {} };
     });
     const curYm = ymStr(new Date());
     students.forEach(function (st, i) {
@@ -1426,6 +1434,15 @@ const DB = (function () {
       if (raw) {
         const db = JSON.parse(raw);
         if (!db.trash) db.trash = [];
+        /* normalize legacy fee amounts (null or old seed 5 → 18/25 based on student type) */
+        db.students.forEach(function (st) {
+          const f = db.fees[st.id];
+          if (!f) {
+            db.fees[st.id] = { amount: defaultFee(st), payments: {} };
+          } else if (f.amount == null || f.amount === LEGACY_SEED_FEE) {
+            f.amount = defaultFee(st);
+          }
+        });
         pruneTrash(db);
         return db;
       }
@@ -1554,12 +1571,23 @@ const DB = (function () {
       const db = load();
       if (st.id) {
         const i = db.students.findIndex(function (s) { return s.id === st.id; });
-        if (i >= 0) db.students[i] = st;
-        if (!db.fees[st.id]) db.fees[st.id] = { amount: null, payments: {} };
+        if (i >= 0) {
+          const old = db.students[i];
+          db.students[i] = st;
+          const f = db.fees[st.id];
+          if (f) {
+            const oldDefault = defaultFee(old);
+            if (old.fullTime !== st.fullTime && (f.amount == null || f.amount === oldDefault || f.amount === LEGACY_SEED_FEE)) {
+              f.amount = defaultFee(st);
+            }
+          } else {
+            db.fees[st.id] = { amount: defaultFee(st), payments: {} };
+          }
+        }
       } else {
         st.id = 's' + Date.now();
         db.students.push(st);
-        if (!db.fees[st.id]) db.fees[st.id] = { amount: null, payments: {} };
+        db.fees[st.id] = { amount: defaultFee(st), payments: {} };
       }
       save(db);
       return st;

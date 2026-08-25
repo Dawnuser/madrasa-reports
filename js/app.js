@@ -1736,6 +1736,12 @@
 
     const bodyFor = function (s) {
       const st = state[s.id];
+      const sw = function (id, field, checked, label) {
+        return '<div style="display:inline-flex;align-items:center;gap:8px">' +
+          '<label class="switch"><input type="checkbox" id="' + id + '" data-qe="' + field + '" data-sid="' + s.id + '"' + (checked ? ' checked' : '') + '><span class="track"></span></label>' +
+          '<span class="lbl" style="font-size:.88rem">' + label + '</span>' +
+        '</div>';
+      };
       return (
         '<div style="margin-top:10px' + (st.present ? '' : ';display:none') + '" id="qe-body-' + s.id + '">' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
@@ -1744,11 +1750,11 @@
             '<div class="field"><label for="qe-lines-' + s.id + '">' + t('lines') + '</label>' +
               '<select id="qe-lines-' + s.id + '" data-qe="lines" data-sid="' + s.id + '">' + rangeOpts(20, st.lines) + '</select></div>' +
           '</div>' +
-          '<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">' +
-            '<label class="switch"><input type="checkbox" id="qe-sabqi-' + s.id + '" data-qe="sabqi" data-sid="' + s.id + '"' + (st.sabqiDone ? ' checked' : '') + '><span class="track"></span><span class="lbl" style="margin-left:6px">' + t('sabqi') + '</span></label>' +
-            '<label class="switch"><input type="checkbox" id="qe-manzil-' + s.id + '" data-qe="manzil" data-sid="' + s.id + '"' + (st.manzilDone ? ' checked' : '') + '><span class="track"></span><span class="lbl" style="margin-left:6px">' + t('manzil') + '</span></label>' +
+          '<div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">' +
+            sw('qe-sabqi-' + s.id, 'sabqi', st.sabqiDone, t('sabqi')) +
+            sw('qe-manzil-' + s.id, 'manzil', st.manzilDone, t('manzil')) +
           '</div>' +
-          '<div class="seg tri"' + (st.manzilDone ? ' style="margin-top:8px"' : ' style="margin-top:8px;display:none"') + ' id="qe-trim-' + s.id + '">' +
+          '<div class="seg tri" style="margin-top:8px" id="qe-trim-' + s.id + '">' +
             manzilOpts.map(function (o) {
               return '<button type="button" class="opt' + (st.manzil === o[0] ? ' on' : '') + '" data-action="qe-manzil" data-sid="' + s.id + '" data-v="' + o[0] + '">' + o[1] + '</button>';
             }).join('') +
@@ -1777,8 +1783,8 @@
                   '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
                 '</div>' +
                 '<div class="seg">' +
-                  '<button type="button" class="opt present' + (st(s.id).present ? ' on present' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="1">' + t('present') + '</button>' +
-                  '<button type="button" class="opt absent' + (!st(s.id).present ? ' on absent' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="0">' + t('absent') + '</button>' +
+                  '<button type="button" class="opt present' + (st(s.id).present ? ' on' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="1">' + t('present') + '</button>' +
+                  '<button type="button" class="opt absent' + (!st(s.id).present ? ' on' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="0">' + t('absent') + '</button>' +
                 '</div>' +
               '</div>' +
               bodyFor(s) +
@@ -1810,11 +1816,7 @@
         const sabqi = document.getElementById('qe-sabqi-' + s.id);
         if (sabqi) sabqi.addEventListener('change', function () { state[s.id].sabqiDone = sabqi.checked; });
         const manzil = document.getElementById('qe-manzil-' + s.id);
-        if (manzil) manzil.addEventListener('change', function () {
-          state[s.id].manzilDone = manzil.checked;
-          const tri = document.getElementById('qe-trim-' + s.id);
-          if (tri) tri.style.display = manzil.checked ? '' : 'none';
-        });
+        if (manzil) manzil.addEventListener('change', function () { state[s.id].manzilDone = manzil.checked; });
       });
     }
     wireWidgets();

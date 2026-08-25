@@ -1754,7 +1754,7 @@
             sw('qe-sabqi-' + s.id, 'sabqi', st.sabqiDone, t('sabqi')) +
             sw('qe-manzil-' + s.id, 'manzil', st.manzilDone, t('manzil')) +
           '</div>' +
-          '<div class="seg tri" style="margin-top:8px" id="qe-trim-' + s.id + '">' +
+          '<div class="seg tri"' + (st.manzilDone ? ' style="margin-top:8px"' : ' style="margin-top:8px;display:none"') + ' id="qe-trim-' + s.id + '">' +
             manzilOpts.map(function (o) {
               return '<button type="button" class="opt' + (st.manzil === o[0] ? ' on' : '') + '" data-action="qe-manzil" data-sid="' + s.id + '" data-v="' + o[0] + '">' + o[1] + '</button>';
             }).join('') +
@@ -1816,7 +1816,11 @@
         const sabqi = document.getElementById('qe-sabqi-' + s.id);
         if (sabqi) sabqi.addEventListener('change', function () { state[s.id].sabqiDone = sabqi.checked; });
         const manzil = document.getElementById('qe-manzil-' + s.id);
-        if (manzil) manzil.addEventListener('change', function () { state[s.id].manzilDone = manzil.checked; });
+        if (manzil) manzil.addEventListener('change', function () {
+          state[s.id].manzilDone = manzil.checked;
+          const tri = document.getElementById('qe-trim-' + s.id);
+          if (tri) tri.style.display = manzil.checked ? '' : 'none';
+        });
       });
     }
     wireWidgets();

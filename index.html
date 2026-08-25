@@ -3150,8 +3150,7 @@ const DB = (function () {
       if (f.amount != null) { totalAmt += f.amount; totalCount++; }
       if (f.payments && f.payments[ym] && f.payments[ym].paid) totalPaid += (f.amount || 0);
     });
-    const totalOut = totalAmt - totalPaid;
-
+    let totalOut = totalAmt - totalPaid;
     app.innerHTML = '' +
       topbar(true) +
       '<main class="app-main">' +
@@ -3181,8 +3180,8 @@ const DB = (function () {
           '<div class="section-title" style="margin-bottom:8px">💰 ' + t('feeSummary') + ' — ' + monthLabel(sel.y, sel.m) + '</div>' +
           '<div class="stat-row">' +
             '<div class="stat"><div class="n">' + num(totalAmt) + '</div><div class="l">' + t('totalFees') + '</div></div>' +
-            '<div class="stat"><div class="n" style="color:var(--ok)">' + num(totalPaid) + '</div><div class="l">' + t('collected') + '</div></div>' +
-            '<div class="stat"><div class="n" style="color:' + (totalOut > 0 ? 'var(--bad)' : 'var(--ok)') + '">' + num(totalOut) + '</div><div class="l">' + t('outstanding') + '</div></div>' +
+            '<div class="stat"><div class="n" id="p-sum-collected" style="color:var(--ok)">' + num(totalPaid) + '</div><div class="l">' + t('collected') + '</div></div>' +
+            '<div class="stat"><div class="n" id="p-sum-outstanding" style="color:' + (totalOut > 0 ? 'var(--bad)' : 'var(--ok)') + '">' + num(totalOut) + '</div><div class="l">' + t('outstanding') + '</div></div>' +
           '</div>' +
           '<div class="meta" style="margin-top:6px">' + num(totalCount) + ' ' + t('studentsWithFees') + ' · ' + t('unit') + '</div>' +
         '</div>' : '') +
@@ -3221,9 +3220,19 @@ const DB = (function () {
       const tr = btn.closest('tr');
       const sid = tr.getAttribute('data-sid');
       const paid = btn.getAttribute('data-v') === '1';
+      const wasPaid = (fees[sid] && fees[sid].payments && fees[sid].payments[ym] && fees[sid].payments[ym].paid) ? true : false;
       DB.markFee(sid, ym, paid, session.id).then(function (res) {
         if (res && res.ok === false) { toast(t('saveFailed')); return; }
         paintFeeBtns(tr, paid, t);
+        if (wasPaid !== paid) {
+          const amt = (fees[sid] && fees[sid].amount != null) ? fees[sid].amount : 0;
+          if (paid) { totalPaid += amt; totalOut -= amt; }
+          else { totalPaid -= amt; totalOut += amt; }
+          const c = document.getElementById('p-sum-collected');
+          const o = document.getElementById('p-sum-outstanding');
+          if (c) c.textContent = num(totalPaid);
+          if (o) { o.textContent = num(totalOut); o.style.color = totalOut > 0 ? 'var(--bad)' : 'var(--ok)'; }
+        }
         toast(paid ? t('markPaid') : t('markUnpaid'));
       });
     };
@@ -3700,7 +3709,6 @@ const DB = (function () {
     if (!cls) { redirect('dashboard'); return; }
     const students = await DB.getStudents(session.classId);
     const today = todayDs();
-    const yest = yesterdayDs();
     const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), today);
     const manzilOpts = [['half', t('halfPara')], ['third', t('thirdPara')], ['full', t('fullPara')]];
     const state = {};
@@ -3708,7 +3716,6 @@ const DB = (function () {
       const r = dayReps[s.id] || {};
       state[s.id] = {
         present: r.present !== undefined ? r.present : true,
-        sabaqDone: !!r.sabaqDone,
         sabqiDone: !!r.sabqiDone,
         manzilDone: !!r.manzilDone,
         manzil: r.manzil || 'half',
@@ -3717,6 +3724,32 @@ const DB = (function () {
         comment: r.comment || ''
       };
     });
+
+    const bodyFor = function (s) {
+      const st = state[s.id];
+      return (
+        '<div style="margin-top:10px' + (st.present ? '' : ';display:none') + '" id="qe-body-' + s.id + '">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+            '<div class="field"><label for="qe-pages-' + s.id + '">' + t('sabaq') + ' — ' + t('pages') + '</label>' +
+              '<select id="qe-pages-' + s.id + '" data-qe="pages" data-sid="' + s.id + '">' + rangeOpts(10, st.pages) + '</select></div>' +
+            '<div class="field"><label for="qe-lines-' + s.id + '">' + t('lines') + '</label>' +
+              '<select id="qe-lines-' + s.id + '" data-qe="lines" data-sid="' + s.id + '">' + rangeOpts(20, st.lines) + '</select></div>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">' +
+            '<label class="switch"><input type="checkbox" id="qe-sabqi-' + s.id + '" data-qe="sabqi" data-sid="' + s.id + '"' + (st.sabqiDone ? ' checked' : '') + '><span class="track"></span><span class="lbl" style="margin-left:6px">' + t('sabqi') + '</span></label>' +
+            '<label class="switch"><input type="checkbox" id="qe-manzil-' + s.id + '" data-qe="manzil" data-sid="' + s.id + '"' + (st.manzilDone ? ' checked' : '') + '><span class="track"></span><span class="lbl" style="margin-left:6px">' + t('manzil') + '</span></label>' +
+          '</div>' +
+          '<div class="seg tri"' + (st.manzilDone ? ' style="margin-top:8px"' : ' style="margin-top:8px;display:none"') + ' id="qe-trim-' + s.id + '">' +
+            manzilOpts.map(function (o) {
+              return '<button type="button" class="opt' + (st.manzil === o[0] ? ' on' : '') + '" data-action="qe-manzil" data-sid="' + s.id + '" data-v="' + o[0] + '">' + o[1] + '</button>';
+            }).join('') +
+          '</div>' +
+          '<div class="field" style="margin-top:8px">' +
+            '<input id="qe-comment-' + s.id + '" data-qe="comment" data-sid="' + s.id + '" placeholder="' + t('commentHint') + '" value="' + esc(st.comment) + '">' +
+          '</div>' +
+        '</div>'
+      );
+    };
 
     app.innerHTML = '' +
       topbar(true) +
@@ -3727,7 +3760,6 @@ const DB = (function () {
         '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('quickEntrySub') + '</div>' +
         '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
         students.map(function (s) {
-          const st = state[s.id];
           return (
             '<div class="card" style="margin-top:12px">' +
               '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
@@ -3736,42 +3768,59 @@ const DB = (function () {
                   '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
                 '</div>' +
                 '<div class="seg">' +
-                  '<button type="button" class="opt present' + (st.present ? ' on present' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="1">' + t('present') + '</button>' +
-                  '<button type="button" class="opt absent' + (!st.present ? ' on absent' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="0">' + t('absent') + '</button>' +
+                  '<button type="button" class="opt present' + (st(s.id).present ? ' on present' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="1">' + t('present') + '</button>' +
+                  '<button type="button" class="opt absent' + (!st(s.id).present ? ' on absent' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="0">' + t('absent') + '</button>' +
                 '</div>' +
               '</div>' +
-              (st.present ?
-                '<div style="margin-top:10px">' +
-                  '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
-                    '<div class="field"><label for="qe-pages-' + s.id + '">' + t('sabaq') + ' — ' + t('pages') + '</label>' +
-                      '<select id="qe-pages-' + s.id + '">' + rangeOpts(10, st.pages) + '</select></div>' +
-                    '<div class="field"><label for="qe-lines-' + s.id + '">' + t('lines') + '</label>' +
-                      '<select id="qe-lines-' + s.id + '">' + rangeOpts(20, st.lines) + '</select></div>' +
-                  '</div>' +
-                  '<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">' +
-                    '<label class="switch"><input type="checkbox" id="qe-sabqi-' + s.id + '"' + (st.sabqiDone ? ' checked' : '') + '><span class="track"></span><span class="lbl" style="margin-left:6px">' + t('sabqi') + '</span></label>' +
-                    '<label class="switch"><input type="checkbox" id="qe-manzil-' + s.id + '"' + (st.manzilDone ? ' checked' : '') + '><span class="track"></span><span class="lbl" style="margin-left:6px">' + t('manzil') + '</span></label>' +
-                  '</div>' +
-                  (st.manzilDone ?
-                    '<div class="seg tri" style="margin-top:8px" id="qe-trim-' + s.id + '">' +
-                      manzilOpts.map(function (o) {
-                        return '<button type="button" class="opt' + (st.manzil === o[0] ? ' on' : '') + '" data-action="qe-manzil" data-sid="' + s.id + '" data-v="' + o[0] + '">' + o[1] + '</button>';
-                      }).join('') +
-                    '</div>' : '') +
-                  '<div class="field" style="margin-top:8px">' +
-                    '<input id="qe-comment-' + s.id + '" placeholder="' + t('commentHint') + '" value="' + esc(st.comment) + '">' +
-                  '</div>' +
-                '</div>' : '') +
+              bodyFor(s) +
             '</div>'
           );
         }).join('') +
         '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
       '</main>';
 
+    function st(sid) { return state[sid]; }
+
+    /* keep DOM widgets in sync with state so a present/absent toggle never loses data */
+    function wireWidgets() {
+      students.forEach(function (s) {
+        const ids = ['qe-pages-' + s.id, 'qe-lines-' + s.id, 'qe-comment-' + s.id];
+        ids.forEach(function (id) {
+          const el = document.getElementById(id);
+          if (el) {
+            el.addEventListener('input', function () {
+              if (id.indexOf('comment') > -1) state[s.id].comment = el.value;
+              else state[s.id][id.indexOf('pages') > -1 ? 'pages' : 'lines'] = parseInt(el.value, 10) || 0;
+            });
+            el.addEventListener('change', function () {
+              if (id.indexOf('comment') > -1) state[s.id].comment = el.value;
+              else state[s.id][id.indexOf('pages') > -1 ? 'pages' : 'lines'] = parseInt(el.value, 10) || 0;
+            });
+          }
+        });
+        const sabqi = document.getElementById('qe-sabqi-' + s.id);
+        if (sabqi) sabqi.addEventListener('change', function () { state[s.id].sabqiDone = sabqi.checked; });
+        const manzil = document.getElementById('qe-manzil-' + s.id);
+        if (manzil) manzil.addEventListener('change', function () {
+          state[s.id].manzilDone = manzil.checked;
+          const tri = document.getElementById('qe-trim-' + s.id);
+          if (tri) tri.style.display = manzil.checked ? '' : 'none';
+        });
+      });
+    }
+    wireWidgets();
+
     viewActions['qe-present'] = function (btn) {
       const sid = btn.getAttribute('data-sid');
       state[sid].present = btn.getAttribute('data-v') === '1';
-      renderQuickEntry(session);
+      const seg = btn.closest('.seg');
+      if (seg) {
+        seg.querySelectorAll('[data-action="qe-present"]').forEach(function (b) {
+          b.classList.toggle('on', b === btn);
+        });
+      }
+      const body = document.getElementById('qe-body-' + sid);
+      if (body) body.style.display = state[sid].present ? '' : 'none';
     };
     viewActions['qe-manzil'] = function (btn) {
       const sid = btn.getAttribute('data-sid');
@@ -3786,24 +3835,16 @@ const DB = (function () {
     viewActions['qe-save-all'] = function () {
       const today2 = todayDs();
       const jobs = students.map(function (s) {
-        const st = state[s.id];
-        st.pages = parseInt((document.getElementById('qe-pages-' + s.id) || { value: 0 }).value, 10) || 0;
-        st.lines = parseInt((document.getElementById('qe-lines-' + s.id) || { value: 0 }).value, 10) || 0;
-        const sabaqBox = document.getElementById('qe-sabqi-' + s.id);
-        const manzilBox = document.getElementById('qe-manzil-' + s.id);
-        st.sabqiDone = !!(sabaqBox && sabaqBox.checked);
-        st.manzilDone = !!(manzilBox && manzilBox.checked);
-        const cm = document.getElementById('qe-comment-' + s.id);
-        if (cm) st.comment = cm.value;
+        const st2 = state[s.id];
         const rep = {
-          present: st.present,
-          sabaqDone: st.present && st.pages + st.lines > 0,
-          pages: st.present && st.pages > 0 ? st.pages : null,
-          lines: st.present && st.lines > 0 ? st.lines : null,
-          sabqiDone: st.present && st.sabqiDone,
-          manzilDone: st.present && st.manzilDone,
-          manzil: st.present && st.manzilDone ? st.manzil : null,
-          comment: st.present && st.comment.trim() ? st.comment.trim() : null
+          present: st2.present,
+          sabaqDone: st2.present && st2.pages + st2.lines > 0,
+          pages: st2.present && st2.pages > 0 ? st2.pages : null,
+          lines: st2.present && st2.lines > 0 ? st2.lines : null,
+          sabqiDone: st2.present && st2.sabqiDone,
+          manzilDone: st2.present && st2.manzilDone,
+          manzil: st2.present && st2.manzilDone ? st2.manzil : null,
+          comment: st2.present && st2.comment.trim() ? st2.comment.trim() : null
         };
         return DB.saveReport(s.id, today2, rep);
       });

@@ -919,7 +919,19 @@ trash: 'Archive',
       absentDays: 'Absent',
       presentCount: 'Present',
       totalDays: 'Total',
-      monthlySummary: 'Monthly Summary'
+      monthlySummary: 'Monthly Summary',
+      classProgress: 'Class Progress',
+      progress: 'Progress',
+      pagesMemorized: 'Pages memorized',
+      attendanceRate: 'Attendance',
+      quickEntry: 'Quick Entry',
+      quickEntrySub: 'Fill today\'s reports for all students in one screen',
+      saveAll: 'Save All',
+      savedAll: 'All reports saved',
+      reminder: 'Reminder',
+      reminderSub: 'No report entered yet today for:',
+      enterNow: 'Enter now',
+      noPendingToday: 'All students have a report today.'
     },
     ur: {
       appName: 'مدرسہ دار المعارج',
@@ -1108,7 +1120,19 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       absentDays: 'غیر حاضری',
       presentCount: 'حاضری',
       totalDays: 'کل',
-      monthlySummary: 'ماہانہ خلاصہ'
+      monthlySummary: 'ماہانہ خلاصہ',
+      classProgress: 'کلاس کی پیشرفت',
+      progress: 'پیشرفت',
+      pagesMemorized: 'یاد شدہ صفحات',
+      attendanceRate: 'حاضری',
+      quickEntry: 'فوری اندراج',
+      quickEntrySub: 'ایک ہی اسکرین پر آج کے تمام رپورٹس درج کریں',
+      saveAll: 'سب محفوظ کریں',
+      savedAll: 'تمام رپورٹس محفوظ ہو گئیں',
+      reminder: 'یاد دہانی',
+      reminderSub: 'ان طلباء کی آج رپورٹ درج نہیں ہوئی:',
+      enterNow: 'ابھی درج کریں',
+      noPendingToday: 'آج تمام طلباء کی رپورٹ موجود ہے۔'
     },
     ar: {
       appName: 'مدرسة دار المعارج',
@@ -1297,7 +1321,19 @@ trash: 'الأرشيف',
       absentDays: 'غائب',
       presentCount: 'حاضر',
       totalDays: 'الإجمالي',
-      monthlySummary: 'ملخص شهري'
+      monthlySummary: 'ملخص شهري',
+      classProgress: 'تقدّم الفصل',
+      progress: 'التقدّم',
+      pagesMemorized: 'صفحات محفوظة',
+      attendanceRate: 'الحضور',
+      quickEntry: 'إدخال سريع',
+      quickEntrySub: 'أدخل تقارير اليوم لجميع الطلاب في شاشة واحدة',
+      saveAll: 'حفظ الكل',
+      savedAll: 'تم حفظ جميع التقارير',
+      reminder: 'تذكير',
+      reminderSub: 'لم تُدخل تقارير هؤلاء الطلاب اليوم:',
+      enterNow: 'أدخل الآن',
+      noPendingToday: 'جميع الطلاب لديهم تقرير اليوم.'
     }
   };
 
@@ -2164,6 +2200,8 @@ const DB = (function () {
       else if (seg[0] === 'monthly' && seg[1]) await renderMonthly(session, seg[1]);
       else if (seg[0] === 'attendance' && seg[1]) await renderAttendance(session, seg[1]);
       else if (seg[0] === 'attendance-class') await renderClassAttendance(session);
+      else if (seg[0] === 'quick') await renderQuickEntry(session);
+      else if (seg[0] === 'progress' && seg[1]) await renderClassProgress(session, seg[1]);
       else if (seg[0] === 'trash') await renderTrash(session);
       else redirect('dashboard');
     } catch (e) {
@@ -2268,7 +2306,19 @@ const DB = (function () {
           '<a class="btn btn-gold btn-block" href="#/fees">💰 ' + t('qariFees') + '</a>' +
           '<a class="btn btn-red btn-block" href="#/reports">📊 ' + t('reports') + '</a>' +
           '<a class="btn btn-blue btn-block" href="#/attendance-class">📅 ' + t('attendance') + '</a>' +
+          '<a class="btn btn-ghost btn-block" href="#/quick">⚡ ' + t('quickEntry') + '</a>' +
         '</div>' +
+        (students.length - todayReportCount > 0 ?
+          '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' +
+            '<div style="font-weight:700;font-size:.95rem;margin-bottom:6px">⚠️ ' + t('reminder') + '</div>' +
+            '<div style="margin-bottom:6px;font-size:.85rem">' + t('reminderSub') + '</div>' +
+            '<div style="margin-bottom:8px">' +
+              students.filter(function (s) { return !hasReports[s.id]; }).map(function (s) {
+                return '<a href="#/student/' + s.id + '?date=' + today + '" style="color:var(--link);text-decoration:underline;margin-right:10px;font-size:.85rem">' + esc(s.name) + '</a>';
+              }).join('') +
+            '</div>' +
+            '<a class="btn btn-primary btn-sm" href="#/quick">⚡ ' + t('enterNow') + '</a>' +
+          '</div>' : '') +
         '<div class="section-title">' + t('myStudents') + '</div>' +
         '<div class="student-grid">' +
           students.map(function (s) {
@@ -2850,6 +2900,7 @@ const DB = (function () {
         '<h1 class="h-display" style="font-size:1.3rem">' + esc(cls.name) + '</h1>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="add-student">+ ' + t('addStudent') + '</button>' +
+          '<a class="btn btn-ghost btn-sm" href="#/progress/' + cid + '">📈 ' + t('classProgress') + '</a>' +
           exportGroup([
             { action: 'export-excel-class', label: '⬇ ' + t('exportExcel') },
             { action: 'export-pdf-class', label: '⬇ ' + t('exportPdf') }
@@ -3638,6 +3689,208 @@ const DB = (function () {
     };
     changeActions['f-month'] = function (el) {
       nav('attendance-class?cid=' + (cid || '') + '&ym=' + el.value);
+    };
+  }
+
+  /* ---------- QUICK ENTRY (qari) ---------- */
+  async function renderQuickEntry(session) {
+    const t = I18N.t;
+    if (session.role === 'principal') { redirect('dashboard'); return; }
+    const cls = await DB.getClass(session.classId);
+    if (!cls) { redirect('dashboard'); return; }
+    const students = await DB.getStudents(session.classId);
+    const today = todayDs();
+    const yest = yesterdayDs();
+    const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), today);
+    const manzilOpts = [['half', t('halfPara')], ['third', t('thirdPara')], ['full', t('fullPara')]];
+    const state = {};
+    students.forEach(function (s) {
+      const r = dayReps[s.id] || {};
+      state[s.id] = {
+        present: r.present !== undefined ? r.present : true,
+        sabaqDone: !!r.sabaqDone,
+        sabqiDone: !!r.sabqiDone,
+        manzilDone: !!r.manzilDone,
+        manzil: r.manzil || 'half',
+        pages: r.pages || 0,
+        lines: r.lines || 0,
+        comment: r.comment || ''
+      };
+    });
+
+    app.innerHTML = '' +
+      topbar(true) +
+      '<main class="app-main">' +
+        '<span class="eyebrow">⚡ ' + t('quickEntry') + '</span>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + esc(cls.name) + '</h1>' +
+        '<div class="pill" style="margin-top:8px">' + t('date') + ' ' + esc(today) + '</div>' +
+        '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('quickEntrySub') + '</div>' +
+        '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
+        students.map(function (s) {
+          const st = state[s.id];
+          return (
+            '<div class="card" style="margin-top:12px">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+                '<div>' +
+                  '<div style="font-weight:700">' + esc(s.name) + '</div>' +
+                  '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
+                '</div>' +
+                '<div class="seg">' +
+                  '<button type="button" class="opt present' + (st.present ? ' on present' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="1">' + t('present') + '</button>' +
+                  '<button type="button" class="opt absent' + (!st.present ? ' on absent' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="0">' + t('absent') + '</button>' +
+                '</div>' +
+              '</div>' +
+              (st.present ?
+                '<div style="margin-top:10px">' +
+                  '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+                    '<div class="field"><label for="qe-pages-' + s.id + '">' + t('sabaq') + ' — ' + t('pages') + '</label>' +
+                      '<select id="qe-pages-' + s.id + '">' + rangeOpts(10, st.pages) + '</select></div>' +
+                    '<div class="field"><label for="qe-lines-' + s.id + '">' + t('lines') + '</label>' +
+                      '<select id="qe-lines-' + s.id + '">' + rangeOpts(20, st.lines) + '</select></div>' +
+                  '</div>' +
+                  '<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">' +
+                    '<label class="switch"><input type="checkbox" id="qe-sabqi-' + s.id + '"' + (st.sabqiDone ? ' checked' : '') + '><span class="track"></span><span class="lbl" style="margin-left:6px">' + t('sabqi') + '</span></label>' +
+                    '<label class="switch"><input type="checkbox" id="qe-manzil-' + s.id + '"' + (st.manzilDone ? ' checked' : '') + '><span class="track"></span><span class="lbl" style="margin-left:6px">' + t('manzil') + '</span></label>' +
+                  '</div>' +
+                  (st.manzilDone ?
+                    '<div class="seg tri" style="margin-top:8px" id="qe-trim-' + s.id + '">' +
+                      manzilOpts.map(function (o) {
+                        return '<button type="button" class="opt' + (st.manzil === o[0] ? ' on' : '') + '" data-action="qe-manzil" data-sid="' + s.id + '" data-v="' + o[0] + '">' + o[1] + '</button>';
+                      }).join('') +
+                    '</div>' : '') +
+                  '<div class="field" style="margin-top:8px">' +
+                    '<input id="qe-comment-' + s.id + '" placeholder="' + t('commentHint') + '" value="' + esc(st.comment) + '">' +
+                  '</div>' +
+                '</div>' : '') +
+            '</div>'
+          );
+        }).join('') +
+        '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
+      '</main>';
+
+    viewActions['qe-present'] = function (btn) {
+      const sid = btn.getAttribute('data-sid');
+      state[sid].present = btn.getAttribute('data-v') === '1';
+      renderQuickEntry(session);
+    };
+    viewActions['qe-manzil'] = function (btn) {
+      const sid = btn.getAttribute('data-sid');
+      state[sid].manzil = btn.getAttribute('data-v');
+      const tri = document.getElementById('qe-trim-' + sid);
+      if (tri) {
+        tri.querySelectorAll('[data-action="qe-manzil"]').forEach(function (b) {
+          b.classList.toggle('on', b === btn);
+        });
+      }
+    };
+    viewActions['qe-save-all'] = function () {
+      const today2 = todayDs();
+      const jobs = students.map(function (s) {
+        const st = state[s.id];
+        st.pages = parseInt((document.getElementById('qe-pages-' + s.id) || { value: 0 }).value, 10) || 0;
+        st.lines = parseInt((document.getElementById('qe-lines-' + s.id) || { value: 0 }).value, 10) || 0;
+        const sabaqBox = document.getElementById('qe-sabqi-' + s.id);
+        const manzilBox = document.getElementById('qe-manzil-' + s.id);
+        st.sabqiDone = !!(sabaqBox && sabaqBox.checked);
+        st.manzilDone = !!(manzilBox && manzilBox.checked);
+        const cm = document.getElementById('qe-comment-' + s.id);
+        if (cm) st.comment = cm.value;
+        const rep = {
+          present: st.present,
+          sabaqDone: st.present && st.pages + st.lines > 0,
+          pages: st.present && st.pages > 0 ? st.pages : null,
+          lines: st.present && st.lines > 0 ? st.lines : null,
+          sabqiDone: st.present && st.sabqiDone,
+          manzilDone: st.present && st.manzilDone,
+          manzil: st.present && st.manzilDone ? st.manzil : null,
+          comment: st.present && st.comment.trim() ? st.comment.trim() : null
+        };
+        return DB.saveReport(s.id, today2, rep);
+      });
+      Promise.all(jobs).then(function (results) {
+        const failed = results.filter(function (r) { return r && r.ok === false; }).length;
+        if (failed) { toast(t('saveFailed')); return; }
+        toast(t('savedAll'));
+        nav('dashboard');
+      });
+    };
+  }
+
+  /* ---------- CLASS PROGRESS (principal) ---------- */
+  async function renderClassProgress(session, cid) {
+    const t = I18N.t;
+    if (session.role === 'principal') {
+      if (!cid) { redirect('principal'); return; }
+    } else {
+      redirect('dashboard');
+      return;
+    }
+    const cls = await DB.getClass(cid);
+    if (!cls) { redirect('principal'); return; }
+    const students = await DB.getStudents(cid);
+    const now = new Date();
+    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
+    const { q } = parseHash();
+    if (q && q.ym) {
+      const pp = q.ym.split('-').map(Number);
+      sel = { y: pp[0], m: pp[1] };
+    }
+    const ym = ymOf(sel.y, sel.m);
+    const months = feeMonths(6);
+    const today = todayDs();
+    const monthReps = await DB.getMonthReportsForStudents(students.map(function (s) { return s.id; }), sel.y, sel.m);
+
+    const cards = students.map(function (s) {
+      const reps = monthReps[s.id] || {};
+      const rows = [];
+      let present = 0, total = 0, pages = 0;
+      Object.keys(reps).forEach(function (ds) {
+        if (ds > today) return;
+        const r = reps[ds];
+        total++;
+        if (r.present) present++;
+        if (r.present && r.sabaqDone) pages += (r.pages || 0) + (r.lines > 0 ? r.lines / 20 : 0);
+        rows.push({ ds: ds, r: r });
+      });
+      rows.sort(function (a, b) { return a.ds < b.ds ? -1 : 1; });
+      const rate = total ? Math.round(present / total * 100) : 0;
+      const chart = progressChart(rows, sel.y, sel.m);
+      return (
+        '<div class="student-row" style="display:block;padding:14px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+            '<div>' +
+              '<div style="font-weight:700">' + esc(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span></div>' +
+              '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+              '<span class="pill" style="background:var(--gold-soft);color:var(--ink)">' + t('attendanceRate') + ': ' + num(rate) + '%</span>' +
+              '<span class="badge badge-ok">' + t('pagesMemorized') + ': ' + num(Math.round(pages)) + '</span>' +
+            '</div>' +
+          '</div>' +
+          (chart ? '<div style="margin-top:10px">' + chart + '</div>' : '<div class="meta" style="margin-top:8px">' + t('noReports') + '</div>') +
+        '</div>'
+      );
+    }).join('');
+
+    app.innerHTML = '' +
+      topbar(true) +
+      '<main class="app-main">' +
+        '<span class="eyebrow">📈 ' + t('classProgress') + '</span>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + esc(cls.name) + '</h1>' +
+        '<div class="field" style="margin-top:12px">' +
+          '<label>' + t('month') + '</label>' +
+          '<select id="f-month" data-change="f-month">' +
+            months.map(function (mo) {
+              const mv = ymOf(mo.y, mo.m);
+              return '<option value="' + mv + '"' + (mv === ym ? ' selected' : '') + '>' + monthLabel(mo.y, mo.m) + '</option>';
+            }).join('') +
+          '</select>' +
+        '</div>' +
+        (students.length === 0 ? '<div class="empty-note" style="margin-top:14px">' + t('noStudents') + '</div>' : cards) +
+      '</main>';
+
+    changeActions['f-month'] = function (el) {
+      nav('progress/' + cid + '?ym=' + el.value);
     };
   }
 

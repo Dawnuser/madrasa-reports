@@ -2753,9 +2753,9 @@ const DB = (function () {
           '<div class="stat"><div class="n">' + num(students.length - todayReportCount) + '</div><div class="l">' + t('pendingToday') + '</div></div>' +
         '</div>' +
         '<div class="dash-actions">' +
-          '<a class="btn btn-gold btn-block" href="#/fees">💰 ' + t('qariFees') + '</a>' +
           '<a class="btn btn-red btn-block" href="#/reports">📊 ' + t('reports') + '</a>' +
           '<a class="btn btn-blue btn-block" href="#/attendance-class">📅 ' + t('attendance') + '</a>' +
+          '<a class="btn btn-gold btn-block" href="#/fees">💰 ' + t('qariFees') + '</a>' +
           '<a class="btn btn-ghost btn-block" href="#/quick">⚡ ' + t('quickEntry') + '</a>' +
         '</div>' +
         (students.length - todayReportCount > 0 ?
@@ -3228,14 +3228,14 @@ const DB = (function () {
             '<span><span class="nm">' + t('classes') + '</span><br><span class="sub">' + num(classes.length) + ' ' + t('classes') + '</span></span>' +
             '<span style="margin-inline-start:auto;color:var(--gold)">&rsaquo;</span>' +
           '</a>' +
-          '<a class="class-row" href="#/pfees">' +
-            '<span class="avatar">💰</span>' +
-            '<span><span class="nm">' + t('fees') + '</span><br><span class="sub">' + t('principalFees') + '</span></span>' +
-            '<span style="margin-inline-start:auto;color:var(--gold)">&rsaquo;</span>' +
-          '</a>' +
           '<a class="class-row" href="#/reports">' +
             '<span class="avatar">📊</span>' +
             '<span><span class="nm">' + t('reports') + '</span><br><span class="sub">' + t('reportsSub') + '</span></span>' +
+            '<span style="margin-inline-start:auto;color:var(--gold)">&rsaquo;</span>' +
+          '</a>' +
+          '<a class="class-row" href="#/pfees">' +
+            '<span class="avatar">💰</span>' +
+            '<span><span class="nm">' + t('fees') + '</span><br><span class="sub">' + t('principalFees') + '</span></span>' +
             '<span style="margin-inline-start:auto;color:var(--gold)">&rsaquo;</span>' +
           '</a>' +
           '<a class="class-row" href="#/trash">' +
@@ -3444,7 +3444,7 @@ const DB = (function () {
         { key: 'sh3', label: t('shift3') + ' (4-6)' },
         { key: 'sh4', label: t('shift4') + ' (6-8)' }
       ];
-      if (cls.type === 'hifz') {
+      if ((cls.type || 'hifz') === 'hifz') {
         return list.map(studentRow).join('');
       }
       var out = '';

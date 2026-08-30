@@ -389,6 +389,9 @@ img { max-width: 100%; }
 .badge-ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
 .badge-miss { background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad); }
 .badge-track { background: color-mix(in srgb, var(--blue) 14%, transparent); color: var(--blue-deep); }
+.badge-shift { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.badge-done { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.badge-pending { background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--warn); }
 .status-dot {
   flex: none;
   width: 12px; height: 12px; border-radius: 50%;
@@ -533,6 +536,16 @@ table.tbl { width: 100%; border-collapse: collapse; background: var(--surface); 
   .student-row { grid-template-columns: 1fr; }
   .student-row .row-actions { justify-content: flex-start; }
 }
+.shift-group { margin-bottom: 16px; }
+.shift-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; margin-bottom: 8px;
+  font-weight: 700; font-size: .85rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 10px;
+}
+.shift-header .badge { font-size: .72rem; }
+.shift-done-badge { margin-left: auto; }
 .row-actions { display: flex; gap: 6px; }
 .icon-mini {
   display: inline-flex; align-items: center; justify-content: center;

@@ -54,6 +54,7 @@ const DB = (function () {
       parentNumber: r.parent_number,
       category: r.category,
       type: r.type || null,
+      shift: r.shift || null,
       inviteCode: r.invite_code || null,
       parentId: r.parent_id || null
     };
@@ -71,6 +72,7 @@ const DB = (function () {
       category: st.category
     };
     if (st.type) o.type = st.type;
+    if (st.shift) o.shift = st.shift;
     return o;
   }
   function mapReport(r) {

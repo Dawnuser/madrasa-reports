@@ -18,6 +18,11 @@ alter table students add column if not exists type text;
 alter table students drop constraint if exists students_type_check;
 alter table students add constraint students_type_check check (type in ('hifz', 'tilawa', 'qaida'));
 
+-- Phase 4b: Shift assignment (tilawa/qaida students only; hifz use full_time)
+alter table students add column if not exists shift text;
+alter table students drop constraint if exists students_shift_check;
+alter table students add constraint students_shift_check check (shift in ('sh1', 'sh2', 'sh3', 'sh4'));
+
 -- Phase 5: Attendance "present with late"
 alter table reports add column if not exists late boolean not null default false;
 

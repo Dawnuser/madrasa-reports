@@ -23,8 +23,7 @@ alter table students add column if not exists shift text;
 alter table students drop constraint if exists students_shift_check;
 alter table students add constraint students_shift_check check (shift in ('sh1', 'sh2', 'sh3', 'sh4'));
 
--- Phase 5: Attendance "present with late"
-alter table reports add column if not exists late boolean not null default false;
+-- Phase 5: (removed — late/punctuality option was removed per qari feedback)
 
 -- Phase 6: Manzil pages+lines (Tilawa) alongside half/third/full (Hifz)
 alter table reports add column if not exists manzil_pages int;

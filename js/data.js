@@ -78,7 +78,6 @@ const DB = (function () {
   function mapReport(r) {
     return {
       present: r.present,
-      late: !!r.late,
       sabaqDone: r.sabaq_done,
       pages: r.pages,
       lines: r.lines,
@@ -93,7 +92,6 @@ const DB = (function () {
   function unmapReport(rep) {
     return {
       present: rep.present,
-      late: !!rep.late,
       sabaq_done: rep.sabaqDone,
       pages: rep.pages,
       lines: rep.lines,

@@ -158,6 +158,10 @@
       exportAllPdf();
     } else if (a === 'export-data') {
       exportData();
+    } else if (a === 'go-password') {
+      nav('password');
+    } else if (a === 'install-app') {
+      DB.installApp();
     }
   });
 
@@ -195,6 +199,16 @@
     }
     if (!session) { redirect('login'); return; }
 
+    /* parents only see their own portal */
+    if (session.role === 'parent' && seg[0] !== 'parent' && seg[0] !== 'invite') {
+      redirect('parent');
+      return;
+    }
+    if (session.role !== 'parent' && (seg[0] === 'parent' || seg[0] === 'invite')) {
+      redirect('dashboard');
+      return;
+    }
+
     try {
       if (seg[0] === 'dashboard') await renderDashboard(session);
       else if (seg[0] === 'student' && seg[1]) await renderStudentForm(session, seg[1], q.date || todayDs());
@@ -212,6 +226,9 @@
       else if (seg[0] === 'quick') await renderQuickEntry(session);
       else if (seg[0] === 'progress' && seg[1]) await renderClassProgress(session, seg[1]);
       else if (seg[0] === 'trash') await renderTrash(session);
+      else if (seg[0] === 'password') await renderChangePassword(session);
+      else if (seg[0] === 'invite') await renderInvite(session);
+      else if (seg[0] === 'parent') await renderParentDashboard(session);
       else redirect('dashboard');
     } catch (e) {
       console.error('Route render failed:', e);
@@ -257,6 +274,9 @@
           '</div>' +
           '<button type="submit" class="btn btn-primary btn-block">' + t('login') + '</button>' +
         '</form>' +
+        '<div style="margin-top:10px;text-align:center">' +
+          '<a href="#/parent" style="font-size:.85rem;color:var(--gold)">👨‍👩‍👧 ' + t('invite') + '</a>' +
+        '</div>' +
         '<div class="login-foot">' + t('sampleOnly') + '</div>' +
       '</div>';
 
@@ -268,6 +288,165 @@
       if (!session) { toast(t('loginError')); return; }
       nav('dashboard');
     });
+  }
+
+  /* ---------- CHANGE PASSWORD ---------- */
+  async function renderChangePassword(session) {
+    const t = I18N.t;
+    app.innerHTML = '' +
+      topbar(true) +
+      '<main class="app-main">' +
+        '<span class="eyebrow">🔐</span>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + t('changePassword') + '</h1>' +
+        '<div class="card" style="margin-top:14px">' +
+          '<div class="field">' +
+            '<label for="cp-cur">' + t('currentPassword') + '</label>' +
+            '<input id="cp-cur" type="password" autocomplete="current-password">' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="cp-new">' + t('newPassword') + '</label>' +
+            '<input id="cp-new" type="password" autocomplete="new-password">' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="cp-conf">' + t('confirmPassword') + '</label>' +
+            '<input id="cp-conf" type="password" autocomplete="new-password">' +
+          '</div>' +
+          '<button class="btn btn-primary btn-block" data-action="cp-save">' + t('changePassword') + '</button>' +
+        '</div>' +
+      '</main>';
+
+    viewActions['cp-save'] = async function () {
+      const cur = document.getElementById('cp-cur').value;
+      const nw = document.getElementById('cp-new').value;
+      const conf = document.getElementById('cp-conf').value;
+      if (nw.length < 6) { toast(t('passwordShort')); return; }
+      if (nw !== conf) { toast(t('passwordMismatch')); return; }
+      const res = await DB.changePassword(cur, nw);
+      if (!res.ok) {
+        if (res.error === 'wrong_password') toast(t('wrongPassword'));
+        else toast(t('saveFailed'));
+        return;
+      }
+      toast(t('passwordChanged'));
+      nav('dashboard');
+    };
+  }
+
+  /* ---------- INVITE (parent onboarding) ---------- */
+  async function renderInvite(session) {
+    const t = I18N.t;
+    app.innerHTML = '' +
+      topbar(true) +
+      '<main class="app-main">' +
+        '<span class="eyebrow">' + t('invite') + '</span>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + t('inviteTitle') + '</h1>' +
+        '<div class="card" style="margin-top:14px">' +
+          '<div style="font-size:.9rem;color:var(--ink-soft);margin-bottom:10px">' + t('inviteSub') + '</div>' +
+          '<div class="field">' +
+            '<label for="iv-code">' + t('inviteCode') + '</label>' +
+            '<input id="iv-code" placeholder="' + t('inviteCodePlaceholder') + '" style="text-transform:uppercase">' +
+          '</div>' +
+          '<button class="btn btn-primary btn-block" data-action="iv-lookup">' + t('inviteLookup') + '</button>' +
+        '</div>' +
+        '<div id="iv-result"></div>' +
+      '</main>';
+
+    viewActions['iv-lookup'] = async function () {
+      const code = document.getElementById('iv-code').value.trim();
+      if (!code) return;
+      const stu = await DB.lookupInvite(code);
+      const box = document.getElementById('iv-result');
+      if (!stu) {
+        box.innerHTML = '<div class="card" style="margin-top:14px;border-color:var(--bad)">' + t('inviteNotFound') + '</div>';
+        return;
+      }
+      box.innerHTML =
+        '<div class="card" style="margin-top:14px">' +
+          '<div class="section-title">' + t('inviteConfirmTitle') + '</div>' +
+          '<div style="font-size:.9rem;color:var(--ink-soft);margin-bottom:10px">' + t('inviteConfirmSub') + '</div>' +
+          '<div class="student-row" style="padding:12px"><div>' +
+            '<div style="font-weight:600">' + esc(stu.name) + '</div>' +
+          '</div></div>' +
+          '<button class="btn btn-primary btn-block" data-action="iv-claim" style="margin-top:10px">' + t('inviteCreateAccount') + '</button>' +
+          '<div style="font-size:.8rem;color:var(--ink-soft);margin-top:8px">' + t('inviteAccountSub') + '</div>' +
+        '</div>';
+      viewActions['iv-claim'] = async function () {
+        const res = await DB.claimInvite(code);
+        if (!res.ok) { toast(t('saveFailed')); return; }
+        toast(t('inviteLinked'));
+        nav('parent');
+      };
+    };
+  }
+
+  /* ---------- PARENT DASHBOARD ---------- */
+  async function renderParentDashboard(session) {
+    const t = I18N.t;
+    const students = await DB.getParentStudents();
+    const classes = await DB.getParentClasses();
+    const fees = await DB.getAllFees();
+    const now = new Date();
+    const ym = ymOf(now.getFullYear(), now.getMonth() + 1);
+    const daysBack = 13;
+    const fromDs = DB.addDays(todayDs(), -daysBack);
+
+    async function childBlock(st) {
+      const cls = classes[st.classId];
+      const reps = await DB.getParentReportRange(st.id, fromDs, todayDs());
+      const keys = Object.keys(reps).sort();
+      let present = 0, absent = 0;
+      keys.forEach(function (k) { if (reps[k].present) present++; else absent++; });
+      const fee = fees[st.id];
+      const cur = fee && fee.payments && fee.payments[ym] ? fee.payments[ym].paid : null;
+      const rows = keys.slice(-10).reverse().map(function (k) {
+        const r = reps[k];
+        return '<div class="rep-row">' +
+          '<span>' + fmtDate(k) + '</span>' +
+          '<span>' + (r.present ? (r.late ? '🕐 ' + t('present') : '✓ ' + t('present')) : '✗ ' + t('absent')) + '</span>' +
+          (r.sabaqDone ? '<span class="badge badge-ok">' + t('sabaq') + ': ' + (r.pages || 0) + 'p' + (r.lines ? '+' + r.lines + 'l' : '') + '</span>' : '<span>—</span>') +
+          (r.sabqiDone ? '<span class="badge">' + t('sabqi') + '</span>' : '') +
+          (r.manzilDone ? '<span class="badge badge-ok">' + t('manzil') + '</span>' : '') +
+        '</div>';
+      }).join('');
+      return (
+        '<div class="card" style="margin-top:14px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+            '<div>' +
+              '<div style="font-weight:700">' + esc(st.name) + '</div>' +
+              '<div class="meta">' + t('parentClass') + ': ' + esc(cls ? cls.name : '—') + ' · ' + t('para') + ' ' + num(st.para) + '</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+              '<span class="badge badge-ok">' + t('parentPresentDays') + ': ' + num(present) + '</span>' +
+              '<span class="badge">' + t('parentAbsentDays') + ': ' + num(absent) + '</span>' +
+              (fee && fee.amount != null ?
+                '<span class="badge' + (cur === true ? ' badge-ok' : '') + '">' + t('parentFeeCurrent') + ': ' + (cur === null ? t('parentFeeNotSet') : cur ? t('parentFeePaid') : t('parentFeeUnpaid')) + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+          (rows ? '<div style="margin-top:10px">' + rows + '</div>' : '<div class="meta" style="margin-top:10px">' + t('noReports') + '</div>') +
+        '</div>'
+      );
+    }
+
+    const blocks = [];
+    for (const st of students) blocks.push(await childBlock(st));
+
+    app.innerHTML = '' +
+      topbar(true) +
+      '<main class="app-main">' +
+        '<span class="eyebrow">' + t('parentPortal') + '</span>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + esc(session.name) + '</h1>' +
+        '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
+          '<button class="btn btn-primary btn-sm" data-action="invite-more">+ ' + t('invite') + '</button>' +
+          '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
+          (DB.installable && typeof DB.installable === 'function' && DB.installable() ?
+            '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
+        '</div>' +
+        (blocks.length === 0 ?
+          '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('parentNoStudents') + '</div>' : blocks.join('')) +
+      '</main>';
+
+    viewActions['invite-more'] = function () { nav('invite'); };
+    viewActions['install-app'] = function () { DB.installApp(); };
   }
 
   /* ---------- DASHBOARD (qari) ---------- */
@@ -377,25 +556,32 @@
     return {
       sid: sid, ds: ds,
       present: r.present !== undefined ? r.present : true,
+      late: !!r.late,
       sabaqDone: !!r.sabaqDone,
       sabqiDone: !!r.sabqiDone,
       manzilDone: !!r.manzilDone,
       manzil: r.manzil || 'half',
       pages: r.pages || 0,
       lines: r.lines || 0,
+      manzilPages: r.manzilPages || 0,
+      manzilLines: r.manzilLines || 0,
       comment: r.comment || ''
     };
   }
 
   function captureWidgets() {
     const g = function (id) { return document.getElementById(id); };
-    const s1 = g('sw-sabaq'), s2 = g('sw-sabqi'), s3 = g('sw-manzil');
+    const s1 = g('sw-sabaq'), s2 = g('sw-sabqi'), s3 = g('sw-manzil'), s4 = g('sw-late');
     if (s1) draft.sabaqDone = s1.checked;
     if (s2) draft.sabqiDone = s2.checked;
     if (s3) draft.manzilDone = s3.checked;
+    if (s4) draft.late = s4.checked;
     const pg = g('f-pages'), ln = g('f-lines');
     if (pg) draft.pages = parseInt(pg.value, 10) || 0;
     if (ln) draft.lines = parseInt(ln.value, 10) || 0;
+    const mpg = g('f-mpages'), mln = g('f-mlines');
+    if (mpg) draft.manzilPages = parseInt(mpg.value, 10) || 0;
+    if (mln) draft.manzilLines = parseInt(mln.value, 10) || 0;
     const mp = app.querySelector('.seg.tri .opt.on');
     if (mp) draft.manzil = mp.getAttribute('data-v');
     const cm = g('f-comment');
@@ -404,7 +590,7 @@
   }
 
   function wireDraftAutosave() {
-    const ids = ['sw-sabaq', 'sw-sabqi', 'sw-manzil', 'f-pages', 'f-lines', 'f-comment'];
+    const ids = ['sw-sabaq', 'sw-sabqi', 'sw-manzil', 'sw-late', 'f-pages', 'f-lines', 'f-mpages', 'f-mlines', 'f-comment'];
     ids.forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
@@ -431,6 +617,8 @@
     const student = await DB.getStudent(sid);
     if (!student) { redirect('dashboard'); return; }
     if (session.role === 'qari' && session.classId !== student.classId) { redirect('dashboard'); return; }
+    const cls = await DB.getClass(student.classId);
+    const track = student.type || (cls && cls.type) || 'hifz';
 
     const existing = await DB.getReport(sid, ds);
     if (!draft || draft.sid !== sid || draft.ds !== ds) draft = buildDraft(sid, ds, existing);
@@ -440,12 +628,18 @@
     const locked = ds < yest;
     const manzilOpts = [['half', t('halfPara')], ['third', t('thirdPara')], ['full', t('fullPara')]];
 
+    /* which fields a student of this track gets */
+    const showSabqi = track === 'hifz';
+    const showManzil = track !== 'qaida';
+    const manzilIsTri = track === 'hifz';
+    const trackLabel = t(track === 'hifz' ? 'hifz' : track === 'tilawa' ? 'tilawa' : 'qaida');
+
     app.innerHTML = '' +
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('reportFor') + '</span>' +
         '<h1 class="h-display" style="font-size:1.3rem">' + esc(student.name) + '</h1>' +
-        '<div class="pill" style="margin-top:8px">' + t('para') + ' ' + num(student.para) + ' · ' + t('category') + ' ' + esc(student.category) + '</div>' +
+        '<div class="pill" style="margin-top:8px">' + t('para') + ' ' + num(student.para) + ' · ' + t('category') + ' ' + esc(student.category) + ' · ' + esc(trackLabel) + '</div>' +
         (locked ? '<div class="card" style="margin-top:14px;border-color:var(--bad)">' + t('locked') + '</div>' : '') +
         (!existing ? '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('noReportForDay') + '</div>' : '') +
         '<div class="card" style="margin-top:14px">' +
@@ -458,6 +652,11 @@
             '<button type="button" class="opt present' + (rep.present ? ' on present' : '') + '" data-action="set-present" data-v="1">' + t('present') + '</button>' +
             '<button type="button" class="opt absent' + (!rep.present ? ' on absent' : '') + '" data-action="set-present" data-v="0">' + t('absent') + '</button>' +
           '</div>' +
+          (rep.present ?
+            '<div class="tick-row" style="margin-top:8px">' +
+              '<div><div class="lbl">' + t('late') + '</div><div class="sub">' + t('lateSub') + '</div></div>' +
+              '<label class="switch"><input type="checkbox" id="sw-late"' + (rep.late ? ' checked' : '') + (locked ? ' disabled' : '') + '><span class="track"></span></label>' +
+            '</div>' : '') +
         '</div>' +
         (rep.present ?
           '<div class="card" style="margin-top:14px">' +
@@ -473,21 +672,33 @@
                   '<select id="f-lines"' + (locked ? ' disabled' : '') + '>' + rangeOpts(20, rep.lines) + '</select></div>' +
               '</div>' +
             '</div>' +
-            '<div class="tick-row">' +
-              '<div><div class="lbl">' + t('sabqi') + '</div><div class="sub">' + t('sabqiSub') + '</div></div>' +
-              '<label class="switch"><input type="checkbox" id="sw-sabqi"' + (rep.sabqiDone ? ' checked' : '') + (locked ? ' disabled' : '') + '><span class="track"></span></label>' +
-            '</div>' +
-            '<div class="tick-row">' +
-              '<div><div class="lbl">' + t('manzil') + '</div><div class="sub">' + t('manzilSub') + '</div></div>' +
-              '<label class="switch"><input type="checkbox" id="sw-manzil"' + (rep.manzilDone ? ' checked' : '') + (locked ? ' disabled' : '') + '><span class="track"></span></label>' +
-            '</div>' +
-            '<div class="reveal' + (rep.manzilDone ? ' open' : '') + '" id="reveal-manzil">' +
-              '<div class="seg tri">' +
-                manzilOpts.map(function (o) {
-                  return '<button type="button" class="opt' + (rep.manzil === o[0] ? ' on' : '') + '" data-action="set-manzil" data-v="' + o[0] + '"' + (locked ? ' disabled' : '') + '>' + o[1] + '</button>';
-                }).join('') +
-              '</div>' +
-            '</div>' +
+            (showSabqi ?
+              '<div class="tick-row">' +
+                '<div><div class="lbl">' + t('sabqi') + '</div><div class="sub">' + t('sabqiSub') + '</div></div>' +
+                '<label class="switch"><input type="checkbox" id="sw-sabqi"' + (rep.sabqiDone ? ' checked' : '') + (locked ? ' disabled' : '') + '><span class="track"></span></label>' +
+              '</div>' : '') +
+            (showManzil ?
+              '<div class="tick-row">' +
+                '<div><div class="lbl">' + t('manzil') + '</div><div class="sub">' + t('manzilSub') + '</div></div>' +
+                '<label class="switch"><input type="checkbox" id="sw-manzil"' + (rep.manzilDone ? ' checked' : '') + (locked ? ' disabled' : '') + '><span class="track"></span></label>' +
+              '</div>' : '') +
+            (showManzil && manzilIsTri ?
+              '<div class="reveal' + (rep.manzilDone ? ' open' : '') + '" id="reveal-manzil">' +
+                '<div class="seg tri">' +
+                  manzilOpts.map(function (o) {
+                    return '<button type="button" class="opt' + (rep.manzil === o[0] ? ' on' : '') + '" data-action="set-manzil" data-v="' + o[0] + '"' + (locked ? ' disabled' : '') + '>' + o[1] + '</button>';
+                  }).join('') +
+                '</div>' +
+              '</div>' : '') +
+            (showManzil && !manzilIsTri ?
+              '<div class="reveal' + (rep.manzilDone ? ' open' : '') + '" id="reveal-manzil">' +
+                '<div class="sub-row">' +
+                  '<div class="field"><label for="f-mpages">' + t('pages') + '</label>' +
+                    '<select id="f-mpages"' + (locked ? ' disabled' : '') + '>' + rangeOpts(10, rep.manzilPages) + '</select></div>' +
+                  '<div class="field"><label for="f-mlines">' + t('lines') + '</label>' +
+                    '<select id="f-mlines"' + (locked ? ' disabled' : '') + '>' + rangeOpts(20, rep.manzilLines) + '</select></div>' +
+                '</div>' +
+              '</div>' : '') +
             '<div class="field" style="margin-top:12px">' +
               '<label for="f-comment">' + t('commentForParents') + ' <small style="color:var(--ink-soft)">' + t('commentHint') + '</small></label>' +
               '<textarea id="f-comment" rows="2" placeholder="' + t('commentHint') + '"' + (locked ? ' disabled' : '') + '>' + esc(rep.comment || '') + '</textarea>' +
@@ -506,15 +717,20 @@
       if (v) nav('student/' + sid + '?date=' + v);
     };
     if (rep.present) {
+      document.getElementById('sw-late').addEventListener('change', function () { draft.late = this.checked; });
       document.getElementById('sw-sabaq').addEventListener('change', function () {
         draft.sabaqDone = this.checked;
         document.getElementById('reveal-sabaq').classList.toggle('open', this.checked);
       });
-      document.getElementById('sw-sabqi').addEventListener('change', function () { draft.sabqiDone = this.checked; });
-      document.getElementById('sw-manzil').addEventListener('change', function () {
-        draft.manzilDone = this.checked;
-        document.getElementById('reveal-manzil').classList.toggle('open', this.checked);
-      });
+      if (showSabqi) {
+        document.getElementById('sw-sabqi').addEventListener('change', function () { draft.sabqiDone = this.checked; });
+      }
+      if (showManzil) {
+        document.getElementById('sw-manzil').addEventListener('change', function () {
+          draft.manzilDone = this.checked;
+          document.getElementById('reveal-manzil').classList.toggle('open', this.checked);
+        });
+      }
     }
     wireDraftAutosave();
 
@@ -536,12 +752,15 @@
       captureWidgets();
       const rep2 = {
         present: draft.present,
+        late: draft.present && draft.late,
         sabaqDone: draft.present && draft.sabaqDone,
         pages: draft.present && draft.sabaqDone ? (draft.pages || null) : null,
         lines: draft.present && draft.sabaqDone ? (draft.lines || null) : null,
         sabqiDone: draft.present && draft.sabqiDone,
         manzilDone: draft.present && draft.manzilDone,
-        manzil: draft.present && draft.manzilDone ? draft.manzil : null,
+        manzil: draft.present && draft.manzilDone && manzilIsTri ? draft.manzil : null,
+        manzilPages: draft.present && draft.manzilDone && !manzilIsTri ? (draft.manzilPages || null) : null,
+        manzilLines: draft.present && draft.manzilDone && !manzilIsTri ? (draft.manzilLines || null) : null,
         comment: draft.present ? (draft.comment.trim() || null) : null
       };
       if (rep2.sabaqDone && !rep2.pages && !rep2.lines) {
@@ -600,6 +819,9 @@
     const student = await DB.getStudent(sid);
     if (!student) { redirect('dashboard'); return; }
     if (session.role === 'qari' && session.classId !== student.classId) { redirect('dashboard'); return; }
+    const clsH = await DB.getClass(student.classId);
+    const trackH = student.type || (clsH && clsH.type) || 'hifz';
+    const manzilIsTri = trackH === 'hifz';
 
     const now = new Date();
     const months = [];
@@ -628,11 +850,18 @@
       rows.push({ ds: ds, r: r });
     }
 
-    const manzilName = function (m) {
-      if (m === 'half') return t('halfPara');
-      if (m === 'third') return t('thirdPara');
-      if (m === 'full') return t('fullPara');
-      return '—';
+    const manzilName = function (r) {
+      if (!r.present || !r.manzilDone) return '—';
+      if (manzilIsTri) {
+        if (r.manzil === 'half') return t('halfPara');
+        if (r.manzil === 'third') return t('thirdPara');
+        if (r.manzil === 'full') return t('fullPara');
+        return '—';
+      }
+      const parts = [];
+      if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
+      if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
+      return parts.join('+') || '—';
     };
     const sabaqCell = function (r) {
       if (!r.present) return '—';
@@ -685,7 +914,7 @@
                     '<td>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent')) + '</td>' +
                     '<td>' + sabaqCell(r) + '</td>' +
                     '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
-                    '<td>' + (r.present ? manzilName(r.manzil) : '—') + '</td>' +
+                    '<td>' + (r.present ? manzilName(r) : '—') + '</td>' +
                     '<td class="cmt">' + (r.comment ? esc(r.comment) : '—') + '</td>' +
                   '</tr>'
                 );
@@ -778,11 +1007,12 @@
         '</div>' +
         '<div class="section-title">' + t('classes') + '</div>' +
         classes.map(function (c) {
+          const typeLabel = t(c.type === 'hifz' ? 'hifz' : c.type === 'tilawa' ? 'tilawa' : c.type === 'qaida' ? 'qaida' : 'hifz');
           return (
             '<div class="class-card" style="margin-bottom:10px">' +
               '<a class="class-row" href="#/class/' + c.id + '" style="flex:1">' +
                 '<span class="avatar">' + esc(c.name.charAt(c.name.length - 1)) + '</span>' +
-                '<span><span class="nm">' + esc(c.name) + '</span><br><span class="sub">' + num(counts[c.id]) + ' ' + t('students') + '</span></span>' +
+                '<span><span class="nm">' + esc(c.name) + '</span><br><span class="sub">' + num(counts[c.id]) + ' ' + t('students') + ' · ' + esc(typeLabel) + '</span></span>' +
                 '<span style="color:var(--gold)">&rsaquo;</span>' +
               '</a>' +
               '<div class="row-actions" style="padding:10px">' +
@@ -799,9 +1029,16 @@
       const b = document.createElement('div');
       b.className = 'modal-back';
       b.innerHTML =
-        '<div class="modal">' +
+          '<div class="modal">' +
           '<h3>' + (isEdit ? t('editClass') : t('addClass')) + '</h3>' +
-          '<div class="field"><label>' + t('classQari') + '</label><input id="m-cname" value="' + esc(cls ? cls.name : '') + '" placeholder="Sheikh ' + t('name') + '"></div>' +
+          '<div class="field"><label>' + t('classQari') + '</label><input id="m-cname" value="' + esc(cls ? cls.name : '') + '" placeholder="Ustad ' + t('name') + '"></div>' +
+          '<div class="field"><label>' + t('classType') + '</label>' +
+            '<select id="m-ctype">' +
+              '<option value="hifz"' + ((cls ? cls.type : 'hifz') === 'hifz' ? ' selected' : '') + '>' + t('hifz') + '</option>' +
+              '<option value="tilawa"' + ((cls ? cls.type : '') === 'tilawa' ? ' selected' : '') + '>' + t('tilawa') + '</option>' +
+              '<option value="qaida"' + ((cls ? cls.type : '') === 'qaida' ? ' selected' : '') + '>' + t('qaida') + '</option>' +
+            '</select>' +
+          '</div>' +
           '<div style="display:flex;gap:10px">' +
             '<button class="btn btn-primary btn-block" data-action="m-c-save">' + t('saveOk') + '</button>' +
             '<button class="btn btn-ghost" data-action="m-c-cancel">' + t('cancel') + '</button>' +
@@ -822,7 +1059,8 @@
             toast(I18N.get() === 'ur' ? 'یہ قاری صاحب پہلے سے موجود ہیں' : 'This Qari Sahab already has a class');
             return;
           }
-          DB.saveClass(Object.assign({}, cls || {}, { name: name })).then(function () {
+          const ctype = document.getElementById('m-ctype').value;
+          DB.saveClass(Object.assign({}, cls || {}, { name: name, type: ctype })).then(function () {
             b.remove();
             renderClasses(session);
           });
@@ -901,12 +1139,14 @@
     const cls = await DB.getClass(cid);
     if (!cls) { redirect('principal'); return; }
     const students = await DB.getStudents(cid);
+    const typeLabel = function (c) { return t(c.type === 'hifz' ? 'hifz' : c.type === 'tilawa' ? 'tilawa' : c.type === 'qaida' ? 'qaida' : 'hifz'); };
 
     app.innerHTML = '' +
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('classes') + '</span>' +
         '<h1 class="h-display" style="font-size:1.3rem">' + esc(cls.name) + '</h1>' +
+        '<div class="pill" style="margin-top:8px">' + typeLabel(cls) + '</div>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="add-student">+ ' + t('addStudent') + '</button>' +
           '<a class="btn btn-ghost btn-sm" href="#/progress/' + cid + '">📈 ' + t('classProgress') + '</a>' +
@@ -922,7 +1162,7 @@
             return (
               '<div class="student-row">' +
                 '<div>' +
-                  '<div style="font-weight:600">' + esc(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span> <span class="badge">' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span></div>' +
+                  '<div style="font-weight:600">' + esc(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span> <span class="badge">' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span> <span class="badge badge-track">' + esc(typeLabel(s)) + '</span></div>' +
                   '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + ' · ' + t('age') + ' ' + num(s.age) + ' · ' + esc(s.parentName) + ' · ' + esc(s.parentNumber) + '</div>' +
                 '</div>' +
                 '<div class="row-actions">' +
@@ -965,6 +1205,12 @@
         return '<option value="full"' + (full !== false ? ' selected' : '') + '>' + t('fullTime') + '</option>' +
                '<option value="part"' + (full === false ? ' selected' : '') + '>' + t('partTime') + '</option>';
       };
+      const trackOpts = function (cur) {
+        return '<option value=""' + (!cur ? ' selected' : '') + '>' + t('trackDefault') + ' (' + t(cls.type === 'hifz' ? 'hifz' : cls.type === 'tilawa' ? 'tilawa' : cls.type === 'qaida' ? 'qaida' : 'hifz') + ')</option>' +
+               '<option value="hifz"' + (cur === 'hifz' ? ' selected' : '') + '>' + t('hifz') + '</option>' +
+               '<option value="tilawa"' + (cur === 'tilawa' ? ' selected' : '') + '>' + t('tilawa') + '</option>' +
+               '<option value="qaida"' + (cur === 'qaida' ? ' selected' : '') + '>' + t('qaida') + '</option>';
+      };
       const b = document.createElement('div');
       b.className = 'modal-back';
       b.innerHTML =
@@ -979,7 +1225,15 @@
             '<input id="m-page" type="number" min="1" max="604" value="' + (st.currentPage || '') + '"></div>' +
           '<div class="field"><label>' + t('fullTime') + ' / ' + t('partTime') + '</label>' +
             '<select id="m-full">' + fullSel(st.fullTime) + '</select></div>' +
-          '<div class="field"><label>' + t('omanId') + '</label><input id="m-oman" value="' + esc(st.omanId || '') + '" placeholder="' + t('omanIdHint') + '"></div>' +
+          '<div class="field"><label>' + t('trackLabel') + ' — <small style="color:var(--ink-soft)">' + t('trackHint') + '</small></label>' +
+            '<select id="m-track">' + trackOpts(st.type) + '</select></div>' +
+          (st.inviteCode ?
+            '<div class="field"><label>' + t('inviteCode') + '</label>' +
+              '<div style="display:flex;gap:8px">' +
+                '<input id="m-invite" value="' + esc(st.inviteCode) + '" readonly style="background:var(--surface-2)">' +
+                '<button class="btn btn-ghost btn-sm" data-action="m-copy-invite">📋</button>' +
+              '</div>' +
+            '</div>' : '') +
           '<div class="field"><label>' + t('parentName') + '</label><input id="m-pname" value="' + esc(st.parentName || '') + '"></div>' +
           '<div class="field"><label>' + t('parentNumber') + '</label><input id="m-pphone" type="tel" value="' + esc(st.parentNumber || '') + '"></div>' +
           '<div class="field"><label>' + t('category') + ' — <small style="color:var(--ink-soft)">' + t('catHint') + '</small></label>' +
@@ -997,6 +1251,14 @@
           b.remove();
           return;
         }
+        if (a.getAttribute('data-action') === 'm-copy-invite') {
+          const iv = document.getElementById('m-invite');
+          if (iv && iv.value) {
+            if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(iv.value);
+            toast(I18N.t('inviteCopied'));
+          }
+          return;
+        }
         if (a.getAttribute('data-action') === 'm-save') {
           const st2 = Object.assign({}, currentEdit, {
             name: document.getElementById('m-name').value.trim(),
@@ -1004,7 +1266,7 @@
             para: parseInt(document.getElementById('m-para').value, 10) || null,
             currentPage: parseInt(document.getElementById('m-page').value, 10) || null,
             fullTime: document.getElementById('m-full').value === 'full',
-            omanId: document.getElementById('m-oman').value.trim(),
+            type: document.getElementById('m-track').value || null,
             parentName: document.getElementById('m-pname').value.trim(),
             parentNumber: document.getElementById('m-pphone').value.replace(/\D/g, ''),
             category: document.getElementById('m-cat').value
@@ -1720,48 +1982,71 @@
     const today = todayDs();
     const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), today);
     const manzilOpts = [['half', t('halfPara')], ['third', t('thirdPara')], ['full', t('fullPara')]];
+    const trackOf = function (s) { return s.type || cls.type || 'hifz'; };
     const state = {};
     students.forEach(function (s) {
       const r = dayReps[s.id] || {};
       state[s.id] = {
         present: r.present !== undefined ? r.present : true,
+        late: !!r.late,
         sabqiDone: !!r.sabqiDone,
         manzilDone: !!r.manzilDone,
         manzil: r.manzil || 'half',
         pages: r.pages || 0,
         lines: r.lines || 0,
+        manzilPages: r.manzilPages || 0,
+        manzilLines: r.manzilLines || 0,
         comment: r.comment || ''
       };
     });
 
     const bodyFor = function (s) {
       const st = state[s.id];
+      const track = trackOf(s);
+      const manzilIsTri = track === 'hifz';
       const sw = function (id, field, checked, label) {
         return '<div style="display:inline-flex;align-items:center;gap:8px">' +
           '<label class="switch"><input type="checkbox" id="' + id + '" data-qe="' + field + '" data-sid="' + s.id + '"' + (checked ? ' checked' : '') + '><span class="track"></span></label>' +
           '<span class="lbl" style="font-size:.88rem">' + label + '</span>' +
         '</div>';
       };
-      return (
-        '<div style="margin-top:10px' + (st.present ? '' : ';display:none') + '" id="qe-body-' + s.id + '">' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
-            '<div class="field"><label for="qe-pages-' + s.id + '">' + t('sabaq') + ' — ' + t('pages') + '</label>' +
-              '<select id="qe-pages-' + s.id + '" data-qe="pages" data-sid="' + s.id + '">' + rangeOpts(10, st.pages) + '</select></div>' +
-            '<div class="field"><label for="qe-lines-' + s.id + '">' + t('lines') + '</label>' +
-              '<select id="qe-lines-' + s.id + '" data-qe="lines" data-sid="' + s.id + '">' + rangeOpts(20, st.lines) + '</select></div>' +
-          '</div>' +
-          '<div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">' +
-            sw('qe-sabqi-' + s.id, 'sabqi', st.sabqiDone, t('sabqi')) +
-            sw('qe-manzil-' + s.id, 'manzil', st.manzilDone, t('manzil')) +
-          '</div>' +
-          '<div class="seg tri"' + (st.manzilDone ? ' style="margin-top:8px"' : ' style="margin-top:8px;display:none"') + ' id="qe-trim-' + s.id + '">' +
+      let out = '';
+      out += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+        '<div class="field"><label for="qe-pages-' + s.id + '">' + t('sabaq') + ' — ' + t('pages') + '</label>' +
+          '<select id="qe-pages-' + s.id + '" data-qe="pages" data-sid="' + s.id + '">' + rangeOpts(10, st.pages) + '</select></div>' +
+        '<div class="field"><label for="qe-lines-' + s.id + '">' + t('lines') + '</label>' +
+          '<select id="qe-lines-' + s.id + '" data-qe="lines" data-sid="' + s.id + '">' + rangeOpts(20, st.lines) + '</select></div>' +
+      '</div>';
+      out += '<div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">';
+      if (track === 'hifz') out += sw('qe-sabqi-' + s.id, 'sabqi', st.sabqiDone, t('sabqi'));
+      if (track !== 'qaida') out += sw('qe-manzil-' + s.id, 'manzil', st.manzilDone, t('manzil'));
+      out += '</div>';
+      if (track !== 'qaida') {
+        if (manzilIsTri) {
+          out += '<div class="seg tri"' + (st.manzilDone ? ' style="margin-top:8px"' : ' style="margin-top:8px;display:none"') + ' id="qe-trim-' + s.id + '">' +
             manzilOpts.map(function (o) {
               return '<button type="button" class="opt' + (st.manzil === o[0] ? ' on' : '') + '" data-action="qe-manzil" data-sid="' + s.id + '" data-v="' + o[0] + '">' + o[1] + '</button>';
             }).join('') +
+          '</div>';
+        } else {
+          out += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px"' + (st.manzilDone ? '' : ' style="display:none;margin-top:8px"') + ' id="qe-trim-' + s.id + '">' +
+            '<div class="field"><label for="qe-mpages-' + s.id + '">' + t('manzil') + ' — ' + t('pages') + '</label>' +
+              '<select id="qe-mpages-' + s.id + '" data-qe="manzilPages" data-sid="' + s.id + '">' + rangeOpts(10, st.manzilPages) + '</select></div>' +
+            '<div class="field"><label for="qe-mlines-' + s.id + '">' + t('lines') + '</label>' +
+              '<select id="qe-mlines-' + s.id + '" data-qe="manzilLines" data-sid="' + s.id + '">' + rangeOpts(20, st.manzilLines) + '</select></div>' +
+          '</div>';
+        }
+      }
+      out += '<div class="field" style="margin-top:8px">' +
+        '<input id="qe-comment-' + s.id + '" data-qe="comment" data-sid="' + s.id + '" placeholder="' + t('commentHint') + '" value="' + esc(st.comment) + '">' +
+      '</div>';
+      return (
+        '<div style="margin-top:10px' + (st.present ? '' : ';display:none') + '" id="qe-body-' + s.id + '">' +
+          '<div class="tick-row" style="margin-bottom:6px">' +
+            '<div><div class="lbl" style="font-size:.88rem">' + t('late') + '</div><div class="sub">' + t('lateSub') + '</div></div>' +
+            '<label class="switch"><input type="checkbox" id="qe-late-' + s.id + '" data-qe="late" data-sid="' + s.id + '"' + (st.late ? ' checked' : '') + '><span class="track"></span></label>' +
           '</div>' +
-          '<div class="field" style="margin-top:8px">' +
-            '<input id="qe-comment-' + s.id + '" data-qe="comment" data-sid="' + s.id + '" placeholder="' + t('commentHint') + '" value="' + esc(st.comment) + '">' +
-          '</div>' +
+          out +
         '</div>'
       );
     };
@@ -1799,22 +2084,28 @@
     /* keep DOM widgets in sync with state so a present/absent toggle never loses data */
     function wireWidgets() {
       students.forEach(function (s) {
-        const ids = ['qe-pages-' + s.id, 'qe-lines-' + s.id, 'qe-comment-' + s.id];
+        const ids = ['qe-pages-' + s.id, 'qe-lines-' + s.id, 'qe-mpages-' + s.id, 'qe-mlines-' + s.id, 'qe-comment-' + s.id];
         ids.forEach(function (id) {
           const el = document.getElementById(id);
           if (el) {
             el.addEventListener('input', function () {
               if (id.indexOf('comment') > -1) state[s.id].comment = el.value;
+              else if (id.indexOf('mpages') > -1) state[s.id].manzilPages = parseInt(el.value, 10) || 0;
+              else if (id.indexOf('mlines') > -1) state[s.id].manzilLines = parseInt(el.value, 10) || 0;
               else state[s.id][id.indexOf('pages') > -1 ? 'pages' : 'lines'] = parseInt(el.value, 10) || 0;
             });
             el.addEventListener('change', function () {
               if (id.indexOf('comment') > -1) state[s.id].comment = el.value;
+              else if (id.indexOf('mpages') > -1) state[s.id].manzilPages = parseInt(el.value, 10) || 0;
+              else if (id.indexOf('mlines') > -1) state[s.id].manzilLines = parseInt(el.value, 10) || 0;
               else state[s.id][id.indexOf('pages') > -1 ? 'pages' : 'lines'] = parseInt(el.value, 10) || 0;
             });
           }
         });
         const sabqi = document.getElementById('qe-sabqi-' + s.id);
         if (sabqi) sabqi.addEventListener('change', function () { state[s.id].sabqiDone = sabqi.checked; });
+        const late = document.getElementById('qe-late-' + s.id);
+        if (late) late.addEventListener('change', function () { state[s.id].late = late.checked; });
         const manzil = document.getElementById('qe-manzil-' + s.id);
         if (manzil) manzil.addEventListener('change', function () {
           state[s.id].manzilDone = manzil.checked;
@@ -1851,14 +2142,19 @@
       const today2 = todayDs();
       const jobs = students.map(function (s) {
         const st2 = state[s.id];
+        const track = trackOf(s);
+        const manzilIsTri = track === 'hifz';
         const rep = {
           present: st2.present,
+          late: st2.present && st2.late,
           sabaqDone: st2.present && st2.pages + st2.lines > 0,
           pages: st2.present && st2.pages > 0 ? st2.pages : null,
           lines: st2.present && st2.lines > 0 ? st2.lines : null,
           sabqiDone: st2.present && st2.sabqiDone,
           manzilDone: st2.present && st2.manzilDone,
-          manzil: st2.present && st2.manzilDone ? st2.manzil : null,
+          manzil: st2.present && st2.manzilDone && manzilIsTri ? st2.manzil : null,
+          manzilPages: st2.present && st2.manzilDone && !manzilIsTri ? (st2.manzilPages > 0 ? st2.manzilPages : null) : null,
+          manzilLines: st2.present && st2.manzilDone && !manzilIsTri ? (st2.manzilLines > 0 ? st2.manzilLines : null) : null,
           comment: st2.present && st2.comment.trim() ? st2.comment.trim() : null
         };
         return DB.saveReport(s.id, today2, rep);
@@ -1951,11 +2247,17 @@
   }
 
   /* ---------- EXPORTS ---------- */
-  function manzilEn(rep) {
-    if (!rep.manzilDone || !rep.manzil) return 'Not done';
-    if (rep.manzil === 'half') return 'Half para';
-    if (rep.manzil === 'third') return 'One-third para';
-    return 'Full para';
+  function manzilEn(rep, manzilIsTri) {
+    if (!rep.manzilDone) return 'Not done';
+    if (manzilIsTri) {
+      if (rep.manzil === 'half') return 'Half para';
+      if (rep.manzil === 'third') return 'One-third para';
+      return 'Full para';
+    }
+    const parts = [];
+    if (rep.manzilPages) parts.push(rep.manzilPages + 'p');
+    if (rep.manzilLines) parts.push(rep.manzilLines + 'l');
+    return parts.join('+') || 'Not done';
   }
 
   function csvCell(v) {
@@ -1978,14 +2280,18 @@
     all.students.forEach(function (s) {
       if (cid && s.classId !== cid) return;
       const cls = all.classes.find(function (c) { return c.id === s.classId; });
+      const track = s.type || (cls && cls.type) || 'hifz';
+      const manzilIsTri = track === 'hifz';
       Object.keys(all.reports).forEach(function (k) {
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
         rows.push([cls.name, s.name, s.para, s.currentPage || '', s.fullTime ? 'Full Time' : 'Part Time', s.category, s.parentName, s.parentNumber, ds,
-          r.present ? 'Present' : 'Absent', r.pages || '', r.lines || '',
+          r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent', r.pages || '', r.lines || '',
           r.present ? (r.sabqiDone ? 'Done' : 'Not done') : '',
-          r.present ? manzilEn(r) : '',
+          r.present ? manzilEn(r, manzilIsTri) : '',
+          !manzilIsTri && r.present ? (r.manzilPages || '') : '',
+          !manzilIsTri && r.present ? (r.manzilLines || '') : '',
           r.comment || ''].map(csvCell).join(','));
       });
     });
@@ -1995,7 +2301,7 @@
   async function exportClassExcel(cid) {
     const all = await DB.getAllData();
     const cls = all.classes.find(function (c) { return c.id === cid; });
-    const csv = '\uFEFFClass,Student,Para,Current Page,Type,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Comment\n' +
+    const csv = '\uFEFFClass,Student,Para,Current Page,Type,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Manzil Pages,Manzil Lines,Comment\n' +
       buildCsvRows(all, cid).join('\n');
     download('madrasa-' + cls.name.replace(/\s+/g, '-') + '-reports.csv', csv);
     toast(I18N.t('exportExcel'));
@@ -2003,7 +2309,7 @@
 
   async function exportAllExcel() {
     const all = await DB.getAllData();
-    const csv = '\uFEFFClass,Student,Para,Current Page,Type,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Comment\n' +
+    const csv = '\uFEFFClass,Student,Para,Current Page,Type,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Manzil Pages,Manzil Lines,Comment\n' +
       buildCsvRows(all, null).join('\n');
     download('madrasa-all-reports.csv', csv);
     toast(I18N.t('exportExcel'));
@@ -2028,15 +2334,17 @@
     const all = await DB.getAllData();
     const students = all.students.filter(function (s) { return s.classId === cid; });
     const cls = all.classes.find(function (c) { return c.id === cid; });
+    const track = cls && cls.type || 'hifz';
+    const manzilIsTri = track === 'hifz';
     let rows = '';
     students.forEach(function (s) {
       Object.keys(all.reports).forEach(function (k) {
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows += '<tr><td>' + esc(s.name) + '</td><td>' + ds + '</td><td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
+        rows += '<tr><td>' + esc(s.name) + '</td><td>' + ds + '</td><td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
-          '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r) + '</td></tr>';
+          '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
       });
     });
     printHtml(cls.name + ' — Reports', rows, '<tr><th>Student</th><th>Date</th><th>Status</th><th>Sabaq</th><th>Sabqi</th><th>Manzil</th></tr>');
@@ -2047,14 +2355,16 @@
     let rows = '';
     all.students.forEach(function (s) {
       const cls = all.classes.find(function (c) { return c.id === s.classId; });
+      const track = s.type || (cls && cls.type) || 'hifz';
+      const manzilIsTri = track === 'hifz';
       Object.keys(all.reports).forEach(function (k) {
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
         rows += '<tr><td>' + esc(cls.name) + '</td><td>' + esc(s.name) + '</td><td>' + ds + '</td>' +
-          '<td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
+          '<td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
-          '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r) + '</td></tr>';
+          '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
       });
     });
     printHtml('All Classes — Reports', rows, '<tr><th>Class</th><th>Student</th><th>Date</th><th>Status</th><th>Sabaq</th><th>Sabqi</th><th>Manzil</th></tr>');
@@ -2065,13 +2375,15 @@
     const st = all.students.find(function (s) { return s.id === sid; });
     if (!st) return;
     const cls = all.classes.find(function (c) { return c.id === st.classId; });
+    const trackRc = st.type || (cls && cls.type) || 'hifz';
+    const manzilIsTri = trackRc === 'hifz';
     const reps = [];
     let presentCount = 0, absentCount = 0, sabaqDays = 0, sabqiDays = 0, manzilDays = 0, totalPages = 0, totalLines = 0;
     Object.keys(all.reports).forEach(function (k) {
       if (k.indexOf(sid + '|') !== 0) return;
       const r = all.reports[k];
       reps.push({ ds: k.split('|')[1], r: r });
-      if (r.present) { presentCount++; if (r.sabaqDone) { sabaqDays++; totalPages += r.pages || 0; totalLines += r.lines || 0; } if (r.sabqiDone) sabqiDays++; if (r.manzilDone) manzilDays++; }
+      if (r.present) { presentCount++; if (r.sabaqDone) { sabaqDays++; totalPages += r.pages || 0; totalLines += r.lines || 0; } if (r.sabqiDone) sabqiDays++; if (r.manzilDone) { manzilDays++; if (!manzilIsTri) { totalPages += r.manzilPages || 0; totalLines += r.manzilLines || 0; } } }
       else absentCount++;
     });
     reps.sort(function (a, b) { return a.ds < b.ds ? -1 : 1; });
@@ -2085,10 +2397,10 @@
       const r = x.r;
       repRows += '<tr>' +
         '<td>' + x.ds + '</td>' +
-        '<td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
+        '<td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
         '<td>' + (r.present && r.sabaqDone ? (r.pages ? r.pages + 'p' : '') + (r.lines ? '+' + r.lines + 'l' : '') : '—') + '</td>' +
         '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
-        '<td>' + (r.present ? (r.manzilDone ? manzilEn(r) : '—') : '—') + '</td>' +
+        '<td>' + (r.present ? (r.manzilDone ? manzilEn(r, manzilIsTri) : '—') : '—') + '</td>' +
         '<td>' + (r.comment ? esc(r.comment) : '—') + '</td>' +
       '</tr>';
     });
@@ -2212,6 +2524,9 @@
           '<span class="t1">' + esc(I18N.t('appName')) + '</span>' +
         '</div>' +
         '<div class="spacer"></div>' +
+        (DB.installable && typeof DB.installable === 'function' && DB.installable() ?
+          '<button class="icon-btn" data-action="install-app" title="' + esc(I18N.t('parentInstallApp')) + '">📲</button>' : '') +
+        '<button class="icon-btn" data-action="go-password" title="' + esc(I18N.t('changePassword')) + '">🔐</button>' +
         '<button class="icon-btn" data-action="toggle-lang" title="Language">' +
           esc(nextLangLabel()) +
         '</button>' +
@@ -2230,6 +2545,10 @@
     input.accept = '*';
     input.style.display = 'none';
     document.body.appendChild(input);
+
+    window.addEventListener('beforeinstallprompt', function (e) { DB.captureInstallPrompt(e); });
+    if (DB.registerPush) DB.registerPush();
+
     applyLangTheme();
     if (DB.restoreSession) await DB.restoreSession();
     await route();

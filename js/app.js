@@ -994,6 +994,17 @@
     const t = I18N.t;
     if (session.role !== 'principal') { redirect('dashboard'); return; }
     const classes = await DB.getClasses();
+    const classOrder = ['atta','anees','hussain','taj','ahsan','osama'];
+    classes.sort(function (a, b) {
+      var ia = classOrder.indexOf(a.name.toLowerCase());
+      var ib = classOrder.indexOf(b.name.toLowerCase());
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+      var ta = a.type === 'hifz' ? 0 : a.type === 'tilawa' ? 1 : 2;
+      var tb = b.type === 'hifz' ? 0 : b.type === 'tilawa' ? 1 : 2;
+      return ta - tb;
+    });
     const studentsByClass = await DB.getStudentsByClass(classes.map(function (c) { return c.id; }));
     const counts = {};
     for (const c of classes) {
@@ -1146,6 +1157,7 @@
     if (!cls) { redirect('principal'); return; }
     const students = await DB.getStudents(cid);
     const typeLabel = function (c) { return t(c.type === 'hifz' ? 'hifz' : c.type === 'tilawa' ? 'tilawa' : c.type === 'qaida' ? 'qaida' : 'hifz'); };
+    const trackLabel = function (st) { var ty = st.type || cls.type || 'hifz'; return t(ty === 'hifz' ? 'hifz' : ty === 'tilawa' ? 'tilawa' : 'qaida'); };
 
     app.innerHTML = '' +
       topbar(true) +
@@ -1168,7 +1180,7 @@
             return (
               '<div class="student-row">' +
                 '<div>' +
-                  '<div style="font-weight:600">' + nameDisplay(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span> <span class="badge">' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span> <span class="badge badge-track">' + esc(typeLabel(s)) + '</span></div>' +
+                  '<div style="font-weight:600">' + nameDisplay(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span> <span class="badge">' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span> <span class="badge badge-track">' + esc(trackLabel(s)) + '</span></div>' +
                   '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + ' · ' + t('age') + ' ' + num(s.age) + ' · ' + esc(s.parentName) + ' · ' + esc(s.parentNumber) + '</div>' +
                 '</div>' +
                 '<div class="row-actions">' +

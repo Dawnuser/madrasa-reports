@@ -9,9 +9,9 @@ alter table classes drop constraint if exists classes_type_check;
 alter table classes add constraint classes_type_check check (type in ('hifz', 'tilawa', 'qaida'));
 
 -- set the correct types for the six classes
-update classes set type = 'hifz'   where name ilike '%Atta-ul-Rahman%' or name ilike '%Anees%' or name ilike '%Hussain%';
-update classes set type = 'tilawa' where name ilike '%Ahsan%' or name ilike '%Taj%';
-update classes set type = 'qaida'  where name ilike '%Osama%';
+update classes set type = 'hifz'   where lower(name) like '%atta%' or lower(name) like '%anees%' or lower(name) like '%hussain%';
+update classes set type = 'tilawa' where lower(name) like '%taj%' or lower(name) like '%ahsan%';
+update classes set type = 'qaida'  where lower(name) like '%osama%';
 
 -- Phase 4: Per-student track override (null = follow class type)
 alter table students add column if not exists type text;

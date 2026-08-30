@@ -388,12 +388,21 @@ img { max-width: 100%; }
 }
 .badge-ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
 .badge-miss { background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad); }
+.badge-track { background: color-mix(in srgb, var(--blue) 14%, transparent); color: var(--blue-deep); }
 .status-dot {
   flex: none;
   width: 12px; height: 12px; border-radius: 50%;
   background: var(--line);
 }
 .status-dot.done { background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 16%, transparent); }
+.rep-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 12px; margin-bottom: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: .85rem;
+}
+.rep-row span:first-child { font-weight: 600; min-width: 76px; }
 
 /* ---------- Section titles ---------- */
 .section-title {

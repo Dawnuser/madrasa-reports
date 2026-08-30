@@ -52,12 +52,14 @@ const DB = (function () {
       fullTime: r.full_time,
       parentName: r.parent_name,
       parentNumber: r.parent_number,
-      omanId: r.oman_id,
-      category: r.category
+      category: r.category,
+      type: r.type || null,
+      inviteCode: r.invite_code || null,
+      parentId: r.parent_id || null
     };
   }
   function unmapStudent(st) {
-    return {
+    const o = {
       class_id: st.classId,
       name: st.name,
       age: st.age,
@@ -66,36 +68,43 @@ const DB = (function () {
       full_time: st.fullTime,
       parent_name: st.parentName,
       parent_number: st.parentNumber,
-      oman_id: st.omanId,
       category: st.category
     };
+    if (st.type) o.type = st.type;
+    return o;
   }
   function mapReport(r) {
     return {
       present: r.present,
+      late: !!r.late,
       sabaqDone: r.sabaq_done,
       pages: r.pages,
       lines: r.lines,
       sabqiDone: r.sabqi_done,
       manzilDone: r.manzil_done,
       manzil: r.manzil,
+      manzilPages: r.manzil_pages,
+      manzilLines: r.manzil_lines,
       comment: r.comment
     };
   }
   function unmapReport(rep) {
     return {
       present: rep.present,
+      late: !!rep.late,
       sabaq_done: rep.sabaqDone,
       pages: rep.pages,
       lines: rep.lines,
       sabqi_done: rep.sabqiDone,
       manzil_done: rep.manzilDone,
       manzil: rep.manzil,
+      manzil_pages: rep.manzilPages,
+      manzil_lines: rep.manzilLines,
       comment: rep.comment
     };
   }
   function mapClass(r) {
-    return { id: r.id, name: r.name, qariId: null };
+    return { id: r.id, name: r.name, qariId: null, type: r.type || null };
   }
 
   /* ---------- date helpers ---------- */
@@ -140,7 +149,7 @@ const DB = (function () {
       const session = {
         id: data.user.id,
         name: prof.name || data.user.email,
-        role: prof.role === 'admin' ? 'principal' : 'qari',
+        role: prof.role === 'admin' ? 'principal' : (prof.role === 'parent' ? 'parent' : 'qari'),
         classId: prof.class_id || null
       };
       persistSession(session);
@@ -166,7 +175,7 @@ const DB = (function () {
             const s = {
               id: data.session.user.id,
               name: prof.name || data.session.user.email,
-              role: prof.role === 'admin' ? 'principal' : 'qari',
+              role: prof.role === 'admin' ? 'principal' : (prof.role === 'parent' ? 'parent' : 'qari'),
               classId: prof.class_id || null
             };
             persistSession(s);
@@ -180,6 +189,15 @@ const DB = (function () {
       persistSession(null);
       try { await client().auth.signOut(); } catch (e) {}
     },
+    async changePassword(oldPassword, newPassword) {
+      const c = client();
+      const { data: { user } } = await c.auth.getUser();
+      if (!user) return { ok: false, error: 'not_logged_in' };
+      const { error: verr } = await c.auth.signInWithPassword({ email: user.email, password: oldPassword });
+      if (verr) return { ok: false, error: 'wrong_password' };
+      const { error } = await c.auth.updateUser({ password: newPassword });
+      return error ? { ok: false, error: error.message } : { ok: true };
+    },
 
     /* users */
     async getUsers() {
@@ -187,7 +205,7 @@ const DB = (function () {
       const { data, error } = await c.from('profiles').select('*');
       const out = {};
       (data || []).forEach(function (p) {
-        out[p.id] = { id: p.id, name: p.name, role: p.role === 'admin' ? 'principal' : 'qari', classId: p.class_id };
+        out[p.id] = { id: p.id, name: p.name, role: p.role === 'admin' ? 'principal' : (p.role === 'parent' ? 'parent' : 'qari'), classId: p.class_id };
       });
       return out;
     },
@@ -206,10 +224,10 @@ const DB = (function () {
     async saveClass(cls) {
       const c = client();
       if (cls.id) {
-        const { data, error } = await c.from('classes').update({ name: cls.name, qari_name: cls.name }).eq('id', cls.id).select().single();
+        const { data, error } = await c.from('classes').update({ name: cls.name, qari_name: cls.name, type: cls.type || null }).eq('id', cls.id).select().single();
         return data ? mapClass(data) : cls;
       } else {
-        const { data, error } = await c.from('classes').insert({ name: cls.name, qari_name: cls.name, category: 'A' }).select().single();
+        const { data, error } = await c.from('classes').insert({ name: cls.name, qari_name: cls.name, category: 'A', type: cls.type || 'hifz' }).select().single();
         return data ? mapClass(data) : cls;
       }
     },
@@ -314,6 +332,41 @@ const DB = (function () {
       await api.pushTrash({ kind: 'student', payload: { st: st, reports: reports, weekly: weekly, monthly: monthly, fees: fees } });
       await c.from('students').delete().eq('id', id);
       return { ok: true };
+    },
+
+    /* parent portal */
+    async lookupInvite(code) {
+      const c = client();
+      const { data, error } = await c.rpc('lookup_invite', { code: String(code || '').trim().toUpperCase() });
+      if (error || !data || !data.length) return null;
+      const row = data[0];
+      return { id: row.sid, name: row.sname, classId: row.scid };
+    },
+    async claimInvite(code) {
+      const c = client();
+      const { data, error } = await c.rpc('claim_invite', { code: String(code || '').trim().toUpperCase() });
+      return error ? { ok: false } : { ok: !!data };
+    },
+    async getParentStudents() {
+      const c = client();
+      const { data, error } = await c.from('students').select('*');
+      const out = [];
+      if (error) return out;
+      const sess = api.getSession();
+      (data || []).forEach(function (r) {
+        if (r.parent_id && r.parent_id === (sess && sess.id)) out.push(mapStudent(r));
+      });
+      return out;
+    },
+    async getParentClasses() {
+      const c = client();
+      const { data } = await c.from('classes').select('*');
+      const out = {};
+      (data || []).forEach(function (r) { out[r.id] = mapClass(r); });
+      return out;
+    },
+    async getParentReportRange(studentId, fromDs, toDs) {
+      return api.getReportRange(studentId, fromDs, toDs);
     },
 
     /* trash */
@@ -605,6 +658,34 @@ const DB = (function () {
     /* dates */
     todayStr: todayStr,
     addDays: addDays,
+
+    /* PWA / web push (client side) */
+    deferredInstallPrompt: null,
+    installable: function () {
+      return !!this.deferredInstallPrompt;
+    },
+    captureInstallPrompt: function (e) {
+      e.preventDefault();
+      api.deferredInstallPrompt = e;
+    },
+    installApp: async function () {
+      const p = api.deferredInstallPrompt;
+      if (!p) return false;
+      p.prompt();
+      const choice = await p.userChoice;
+      api.deferredInstallPrompt = null;
+      return choice && choice.outcome === 'accepted';
+    },
+    registerPush: async function () {
+      try {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+        await navigator.serviceWorker.register('sw.js');
+        return true;
+      } catch (e) {
+        console.warn('registerPush failed', e);
+        return false;
+      }
+    },
 
     /* meta */
     categories: CATEGORIES,

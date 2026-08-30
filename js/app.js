@@ -517,13 +517,14 @@
         '<div class="student-grid">' +
           students.map(function (s) {
             const done = hasReports[s.id];
+            const stTrack = s.type || cls.type || 'hifz';
             return (
               '<a class="student-card" href="#/student/' + s.id + '?date=' + today + '">' +
                 '<span class="avatar">' + esc(s.name.charAt(0)) + '</span>' +
                 '<span class="s-card-body">' +
                   '<span class="n">' + nameDisplay(s.name) + '</span><br>' +
                   '<span class="m">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') +
-                  ' · ' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span>' +
+                  ' · ' + (stTrack === 'hifz' ? (s.fullTime ? t('fullTime') : t('partTime')) : (s.shift ? (t('shift' + s.shift.replace('sh', '')) + ' (' + (s.shift === 'sh1' ? '8-10' : s.shift === 'sh2' ? '10-12' : s.shift === 'sh3' ? '4-6' : '6-8') + ')') : t('shiftNone'))) + '</span>' +
                 '</span>' +
                 '<span class="status-dot' + (done ? ' done' : '') + '" title="' + (done ? t('done') : t('pendingToday')) + '"></span>' +
               '</a>'
@@ -645,7 +646,8 @@
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('reportFor') + '</span>' +
         '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(student.name) + '</h1>' +
-        '<div class="pill" style="margin-top:8px">' + t('para') + ' ' + num(student.para) + ' · ' + t('category') + ' ' + esc(student.category) + ' · ' + esc(trackLabel) + '</div>' +
+        '<div class="pill" style="margin-top:8px">' + t('para') + ' ' + num(student.para) + ' · ' + t('category') + ' ' + esc(student.category) + ' · ' + esc(trackLabel) +
+          (track !== 'hifz' && student.shift ? ' · 🕗 ' + esc(t('shift' + student.shift.replace('sh', '')) + ' (' + (student.shift === 'sh1' ? '8-10' : student.shift === 'sh2' ? '10-12' : student.shift === 'sh3' ? '4-6' : '6-8') + ')') : '') + '</div>' +
         (locked ? '<div class="card" style="margin-top:14px;border-color:var(--bad)">' + t('locked') + '</div>' : '') +
         (!existing ? '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('noReportForDay') + '</div>' : '') +
         '<div class="card" style="margin-top:14px">' +
@@ -1176,23 +1178,62 @@
         '<div class="section-title">' + t('students') + '</div>' +
         (students.length === 0 ?
           '<div class="empty-note">' + t('noStudents') + ' — <a href="#" data-action="add-student">' + t('addFirst') + '</a></div>' :
-          students.map(function (s) {
-            return (
-              '<div class="student-row">' +
-                '<div>' +
-                  '<div style="font-weight:600">' + nameDisplay(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span> <span class="badge">' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span> <span class="badge badge-track">' + esc(trackLabel(s)) + '</span></div>' +
-                  '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + ' · ' + t('age') + ' ' + num(s.age) + ' · ' + esc(s.parentName) + ' · ' + esc(s.parentNumber) + '</div>' +
-                '</div>' +
-                '<div class="row-actions">' +
-                  '<a class="icon-mini" href="#/attendance/' + s.id + '" title="' + t('attendance') + '">📅</a>' +
-                  '<button class="icon-mini" data-action="view-student" data-id="' + s.id + '" title="' + t('view') + '">👁</button>' +
-                  '<button class="icon-mini" data-action="edit-student" data-id="' + s.id + '" title="' + t('edit') + '">✎</button>' +
-                  '<button class="icon-mini danger" data-action="del-student" data-id="' + s.id + '" title="' + t('remove') + '">🗑</button>' +
-                '</div>' +
-              '</div>'
-            );
-          }).join('')) +
+          renderStudentGroups(students)) +
       '</main>';
+
+    function renderStudentGroups(list) {
+      const shifts = [
+        { key: 'sh1', label: t('shift1') + ' (8-10)' },
+        { key: 'sh2', label: t('shift2') + ' (10-12)' },
+        { key: 'sh3', label: t('shift3') + ' (4-6)' },
+        { key: 'sh4', label: t('shift4') + ' (6-8)' }
+      ];
+      if ((cls.type || 'hifz') === 'hifz') {
+        return list.map(studentRow).join('');
+      }
+      var out = '';
+      shifts.forEach(function (sh) {
+        var grp = list.filter(function (s) { return (s.shift || '') === sh.key; });
+        if (!grp.length) return;
+        out += '<div class="shift-group">' +
+               '<div class="shift-header">🕗 ' + sh.label + ' <span class="badge">' + grp.length + ' ' + t('shiftStudents') + '</span></div>' +
+               grp.map(studentRow).join('') +
+               '</div>';
+      });
+      var unassigned = list.filter(function (s) {
+        return !s.shift;
+      });
+      if (unassigned.length) {
+        out += '<div class="shift-group">' +
+               '<div class="shift-header">— ' + t('shiftNone') + ' <span class="badge">' + unassigned.length + ' ' + t('shiftStudents') + '</span></div>' +
+               unassigned.map(studentRow).join('') +
+               '</div>';
+      }
+      return out;
+    }
+
+    function studentRow(s) {
+      var ty = s.type || cls.type || 'hifz';
+      return (
+        '<div class="student-row">' +
+          '<div>' +
+            '<div style="font-weight:600">' + nameDisplay(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span> ' +
+              (ty === 'hifz'
+                ? '<span class="badge">' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span>'
+                : '<span class="badge badge-shift">' + esc(s.shift ? (t('shift' + s.shift.replace('sh', '')) + ' (' + (s.shift === 'sh1' ? '8-10' : s.shift === 'sh2' ? '10-12' : s.shift === 'sh3' ? '4-6' : '6-8') + ')') : t('shiftNone')) + '</span>') +
+              ' <span class="badge badge-track">' + esc(trackLabel(s)) + '</span></div>' +
+            '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + ' · ' + t('age') + ' ' + num(s.age) + ' · ' + esc(s.parentName) + ' · ' + esc(s.parentNumber) + '</div>' +
+          '</div>' +
+          '<div class="row-actions">' +
+            '<a class="icon-mini" href="#/attendance/' + s.id + '" title="' + t('attendance') + '">📅</a>' +
+            '<button class="icon-mini" data-action="view-student" data-id="' + s.id + '" title="' + t('view') + '">👁</button>' +
+            '<button class="icon-mini" data-action="edit-student" data-id="' + s.id + '" title="' + t('edit') + '">✎</button>' +
+            '<button class="icon-mini danger" data-action="del-student" data-id="' + s.id + '" title="' + t('remove') + '">🗑</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
 
     viewActions['add-student'] = function () { openModal({ classId: cid, category: 'A' }); };
     viewActions['edit-student'] = function (btn) {
@@ -1229,6 +1270,19 @@
                '<option value="tilawa"' + (cur === 'tilawa' ? ' selected' : '') + '>' + t('tilawa') + '</option>' +
                '<option value="qaida"' + (cur === 'qaida' ? ' selected' : '') + '>' + t('qaida') + '</option>';
       };
+      const shiftSel = function (cur) {
+        return '<option value=""' + (!cur ? ' selected' : '') + '>' + t('shiftNone') + '</option>' +
+               '<option value="sh1"' + (cur === 'sh1' ? ' selected' : '') + '>' + t('shift1') + ' (8-10)</option>' +
+               '<option value="sh2"' + (cur === 'sh2' ? ' selected' : '') + '>' + t('shift2') + ' (10-12)</option>' +
+               '<option value="sh3"' + (cur === 'sh3' ? ' selected' : '') + '>' + t('shift3') + ' (4-6)</option>' +
+               '<option value="sh4"' + (cur === 'sh4' ? ' selected' : '') + '>' + t('shift4') + ' (6-8)</option>';
+      };
+      const defTrack = st.type || cls.type || 'hifz';
+      const applyTrackUi = function () {
+        const tr = (document.getElementById('m-track').value || defTrack) === 'hifz';
+        document.getElementById('m-full-wrap').style.display = tr ? '' : 'none';
+        document.getElementById('m-shift-wrap').style.display = tr ? 'none' : '';
+      };
       const b = document.createElement('div');
       b.className = 'modal-back';
       b.innerHTML =
@@ -1241,8 +1295,10 @@
           '</div>' +
           '<div class="field"><label>' + t('currentPage') + ' — <small style="color:var(--ink-soft)">' + t('currentPageHint') + '</small></label>' +
             '<input id="m-page" type="number" min="1" max="604" value="' + (st.currentPage || '') + '"></div>' +
-          '<div class="field"><label>' + t('fullTime') + ' / ' + t('partTime') + '</label>' +
+          '<div class="field" id="m-full-wrap"><label>' + t('fullTime') + ' / ' + t('partTime') + '</label>' +
             '<select id="m-full">' + fullSel(st.fullTime) + '</select></div>' +
+          '<div class="field" id="m-shift-wrap" style="display:none"><label>' + t('shift') + ' — <small style="color:var(--ink-soft)">' + t('shiftHint') + '</small></label>' +
+            '<select id="m-shift">' + shiftSel(st.shift) + '</select></div>' +
           '<div class="field"><label>' + t('trackLabel') + ' — <small style="color:var(--ink-soft)">' + t('trackHint') + '</small></label>' +
             '<select id="m-track">' + trackOpts(st.type) + '</select></div>' +
           (st.inviteCode ?
@@ -1285,6 +1341,7 @@
             currentPage: parseInt(document.getElementById('m-page').value, 10) || null,
             fullTime: document.getElementById('m-full').value === 'full',
             type: document.getElementById('m-track').value || null,
+            shift: document.getElementById('m-shift').value || null,
             parentName: document.getElementById('m-pname').value.trim(),
             parentNumber: document.getElementById('m-pphone').value.replace(/\D/g, ''),
             category: document.getElementById('m-cat').value
@@ -1587,8 +1644,12 @@
           '<button class="btn btn-ghost" data-action="m-fh-close">' + t('close') + '</button>' +
         '</div>' +
       '</div>';
-    document.body.appendChild(b);
-    b.addEventListener('click', function (e) {
+      document.body.appendChild(b);
+      applyTrackUi();
+      b.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'm-track') applyTrackUi();
+      });
+      b.addEventListener('click', function (e) {
       const a = e.target.closest('[data-action]');
       if ((a && a.getAttribute('data-action') === 'm-fh-close') || e.target === b) b.remove();
     });
@@ -2001,6 +2062,7 @@
     const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), today);
     const manzilOpts = [['half', t('halfPara')], ['third', t('thirdPara')], ['full', t('fullPara')]];
     const trackOf = function (s) { return s.type || cls.type || 'hifz'; };
+    const savedIds = new Set(students.filter(function (s) { return dayReps[s.id]; }).map(function (s) { return s.id; }));
     const state = {};
     students.forEach(function (s) {
       const r = dayReps[s.id] || {};
@@ -2077,25 +2139,76 @@
         '<div class="pill" style="margin-top:8px">' + t('date') + ' ' + esc(today) + '</div>' +
         '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('quickEntrySub') + '</div>' +
         '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
-        students.map(function (s) {
-          return (
-            '<div class="card" style="margin-top:12px">' +
-              '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
-                '<div>' +
-                  '<div style="font-weight:700">' + nameDisplay(s.name) + '</div>' +
-                  '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
-                '</div>' +
-                '<div class="seg">' +
-                  '<button type="button" class="opt present' + (st(s.id).present ? ' on' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="1">' + t('present') + '</button>' +
-                  '<button type="button" class="opt absent' + (!st(s.id).present ? ' on' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="0">' + t('absent') + '</button>' +
-                '</div>' +
-              '</div>' +
-              bodyFor(s) +
-            '</div>'
-          );
-        }).join('') +
+        quickEntryGroups() +
         '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
       '</main>';
+
+    function quickEntryGroups() {
+      const shifts = [
+        { key: 'sh1', label: t('shift1') + ' (8-10)' },
+        { key: 'sh2', label: t('shift2') + ' (10-12)' },
+        { key: 'sh3', label: t('shift3') + ' (4-6)' },
+        { key: 'sh4', label: t('shift4') + ' (6-8)' }
+      ];
+      const hasShiftStudents = cls.type !== 'hifz';
+      const cardFor = function (s) {
+        return (
+          '<div class="card" style="margin-top:12px">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+              '<div>' +
+                '<div style="font-weight:700">' + nameDisplay(s.name) + '</div>' +
+                '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
+              '</div>' +
+              '<div class="seg">' +
+                '<button type="button" class="opt present' + (st(s.id).present ? ' on' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="1">' + t('present') + '</button>' +
+                '<button type="button" class="opt absent' + (!st(s.id).present ? ' on' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="0">' + t('absent') + '</button>' +
+              '</div>' +
+            '</div>' +
+            bodyFor(s) +
+          '</div>'
+        );
+      };
+      if (!hasShiftStudents) return students.map(cardFor).join('');
+      var out = '';
+      shifts.forEach(function (sh) {
+        var grp = students.filter(function (s) { return (s.shift || '') === sh.key; });
+        if (!grp.length) return;
+        out += '<div class="shift-group" data-shift="' + sh.key + '">' +
+               '<div class="shift-header">🕗 ' + sh.label + ' <span class="badge">' + grp.length + ' ' + t('shiftStudents') + '</span>' +
+               ' <span class="shift-done-badge">' + shiftStatusBadge(sh.key) + '</span></div>' +
+               grp.map(cardFor).join('') +
+               '</div>';
+      });
+      var unassigned = students.filter(function (s) { return !s.shift; });
+      if (unassigned.length) {
+        out += '<div class="shift-group" data-shift="un">' +
+               '<div class="shift-header">— ' + t('shiftNone') + ' <span class="badge">' + unassigned.length + ' ' + t('shiftStudents') + '</span>' +
+               ' <span class="shift-done-badge">' + shiftStatusBadge('un') + '</span></div>' +
+               unassigned.map(cardFor).join('') +
+               '</div>';
+      }
+      return out;
+    }
+
+    function shiftStatusBadge(key) {
+      var ids = key === 'un'
+        ? students.filter(function (s) { return !s.shift; }).map(function (s) { return s.id; })
+        : students.filter(function (s) { return (s.shift || '') === key; }).map(function (s) { return s.id; });
+      if (!ids.length) return '';
+      var done = ids.filter(function (id) { return savedIds.has(id); }).length;
+      var all = done === ids.length;
+      return all
+        ? '<span class="badge badge-done">✅ ' + done + '/' + ids.length + ' ' + t('shiftDone') + '</span>'
+        : '<span class="badge badge-pending">' + done + '/' + ids.length + '</span>';
+    }
+
+    function updateShiftBadges() {
+      document.querySelectorAll('.shift-group').forEach(function (g) {
+        var key = g.getAttribute('data-shift');
+        var el = g.querySelector('.shift-done-badge');
+        if (el) el.innerHTML = shiftStatusBadge(key);
+      });
+    }
 
     function st(sid) { return state[sid]; }
 
@@ -2181,6 +2294,8 @@
         const failed = results.filter(function (r) { return r && r.ok === false; }).length;
         if (failed) { toast(t('saveFailed')); return; }
         toast(t('savedAll'));
+        students.forEach(function (s) { savedIds.add(s.id); });
+        updateShiftBadges();
         nav('dashboard');
       });
     };
@@ -2293,6 +2408,11 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
 
+  function shiftEn(sh) {
+    if (!sh) return '';
+    return sh === 'sh1' ? '8-10' : sh === 'sh2' ? '10-12' : sh === 'sh3' ? '4-6' : sh === 'sh4' ? '6-8' : '';
+  }
+
   function buildCsvRows(all, cid) {
     const rows = [];
     all.students.forEach(function (s) {
@@ -2304,7 +2424,7 @@
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows.push([nameClean(cls.name), nameClean(s.name), s.para, s.currentPage || '', s.fullTime ? 'Full Time' : 'Part Time', s.category, s.parentName, s.parentNumber, ds,
+        rows.push([nameClean(cls.name), nameClean(s.name), s.para, s.currentPage || '', s.fullTime ? 'Full Time' : 'Part Time', shiftEn(s.shift), s.category, s.parentName, s.parentNumber, ds,
           r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent', r.pages || '', r.lines || '',
           r.present ? (r.sabqiDone ? 'Done' : 'Not done') : '',
           r.present ? manzilEn(r, manzilIsTri) : '',
@@ -2319,7 +2439,7 @@
   async function exportClassExcel(cid) {
     const all = await DB.getAllData();
     const cls = all.classes.find(function (c) { return c.id === cid; });
-    const csv = '\uFEFFClass,Student,Para,Current Page,Type,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Manzil Pages,Manzil Lines,Comment\n' +
+    const csv = '\uFEFFClass,Student,Para,Current Page,Type,Shift,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Manzil Pages,Manzil Lines,Comment\n' +
       buildCsvRows(all, cid).join('\n');
     download('madrasa-' + nameClean(cls.name).replace(/\s+/g, '-') + '-reports.csv', csv);
     toast(I18N.t('exportExcel'));
@@ -2327,7 +2447,7 @@
 
   async function exportAllExcel() {
     const all = await DB.getAllData();
-    const csv = '\uFEFFClass,Student,Para,Current Page,Type,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Manzil Pages,Manzil Lines,Comment\n' +
+    const csv = '\uFEFFClass,Student,Para,Current Page,Type,Shift,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Manzil Pages,Manzil Lines,Comment\n' +
       buildCsvRows(all, null).join('\n');
     download('madrasa-all-reports.csv', csv);
     toast(I18N.t('exportExcel'));
@@ -2360,7 +2480,7 @@
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows += '<tr><td>' + nameDisplay(s.name) + '</td><td>' + ds + '</td><td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
+        rows += '<tr><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td><td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
       });
@@ -2379,7 +2499,7 @@
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows += '<tr><td>' + nameDisplay(cls.name) + '</td><td>' + nameDisplay(s.name) + '</td><td>' + ds + '</td>' +
+        rows += '<tr><td>' + nameDisplay(cls.name) + '</td><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td>' +
           '<td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
@@ -2451,6 +2571,7 @@
         '<div class="g"><b>' + st.para + '</b>Current Para</div>' +
         '<div class="g"><b>' + (st.currentPage || '—') + '</b>Current Page</div>' +
         '<div class="g"><b>' + (st.fullTime ? 'Full-time' : 'Part-time') + '</b>Type</div>' +
+        (st.shift ? '<div class="g"><b>' + shiftEn(st.shift) + '</b>Shift</div>' : '') +
         '<div class="g"><b>' + esc(st.parentName || '—') + '</b>Parent</div>' +
         '<div class="g"><b>' + esc(st.parentNumber || '—') + '</b>Contact</div>' +
       '</div>' +

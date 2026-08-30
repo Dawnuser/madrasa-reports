@@ -2226,6 +2226,12 @@ const DB = (function () {
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  function nameDisplay(s) {
+    return esc(String(s == null ? '' : s).replace(/Sheikh\s*/gi, 'Ustad ')).replace(/\s+/g, ' ').trim();
+  }
+  function nameClean(s) {
+    return String(s == null ? '' : s).replace(/Sheikh\s*/gi, 'Ustad ').replace(/\s+/g, ' ').trim();
+  }
 
   function num(n) {
     return I18N.digits(n);
@@ -2579,7 +2585,7 @@ const DB = (function () {
           '<div class="section-title">' + t('inviteConfirmTitle') + '</div>' +
           '<div style="font-size:.9rem;color:var(--ink-soft);margin-bottom:10px">' + t('inviteConfirmSub') + '</div>' +
           '<div class="student-row" style="padding:12px"><div>' +
-            '<div style="font-weight:600">' + esc(stu.name) + '</div>' +
+            '<div style="font-weight:600">' + nameDisplay(stu.name) + '</div>' +
           '</div></div>' +
           '<button class="btn btn-primary btn-block" data-action="iv-claim" style="margin-top:10px">' + t('inviteCreateAccount') + '</button>' +
           '<div style="font-size:.8rem;color:var(--ink-soft);margin-top:8px">' + t('inviteAccountSub') + '</div>' +
@@ -2626,8 +2632,8 @@ const DB = (function () {
         '<div class="card" style="margin-top:14px">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
             '<div>' +
-              '<div style="font-weight:700">' + esc(st.name) + '</div>' +
-              '<div class="meta">' + t('parentClass') + ': ' + esc(cls ? cls.name : '—') + ' · ' + t('para') + ' ' + num(st.para) + '</div>' +
+              '<div style="font-weight:700">' + nameDisplay(st.name) + '</div>' +
+              '<div class="meta">' + t('parentClass') + ': ' + nameDisplay(cls ? cls.name : '—') + ' · ' + t('para') + ' ' + num(st.para) + '</div>' +
             '</div>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
               '<span class="badge badge-ok">' + t('parentPresentDays') + ': ' + num(present) + '</span>' +
@@ -2648,7 +2654,7 @@ const DB = (function () {
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('parentPortal') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">' + esc(session.name) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(session.name) + '</h1>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="invite-more">+ ' + t('invite') + '</button>' +
           '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
@@ -2674,7 +2680,7 @@ const DB = (function () {
         '<main class="app-main">' +
           '<div class="greet">' +
             '<span class="eyebrow">' + t('welcome') + '</span>' +
-            '<h1>' + esc(session.name) + '</h1>' +
+            '<h1>' + nameDisplay(session.name) + '</h1>' +
           '</div>' +
           '<div class="empty-note">' + t('noClassAssigned') + '</div>' +
         '</main>';
@@ -2696,8 +2702,8 @@ const DB = (function () {
       '<main class="app-main">' +
         '<div class="greet">' +
           '<span class="eyebrow">' + t('welcome') + '</span>' +
-          '<h1>' + esc(session.name) + '</h1>' +
-          '<span class="pill">' + esc(cls.name) + '</span>' +
+          '<h1>' + nameDisplay(session.name) + '</h1>' +
+          '<span class="pill">' + nameDisplay(cls.name) + '</span>' +
         '</div>' +
         '<div class="stat-row">' +
           '<div class="stat"><div class="n">' + num(students.length) + '</div><div class="l">' + t('students') + '</div></div>' +
@@ -2716,7 +2722,7 @@ const DB = (function () {
             '<div style="margin-bottom:6px;font-size:.85rem">' + t('reminderSub') + '</div>' +
             '<div style="margin-bottom:8px">' +
               students.filter(function (s) { return !hasReports[s.id]; }).map(function (s) {
-                return '<a href="#/student/' + s.id + '?date=' + today + '" style="color:var(--link);text-decoration:underline;margin-right:10px;font-size:.85rem">' + esc(s.name) + '</a>';
+                return '<a href="#/student/' + s.id + '?date=' + today + '" style="color:var(--link);text-decoration:underline;margin-right:10px;font-size:.85rem">' + nameDisplay(s.name) + '</a>';
               }).join('') +
             '</div>' +
             '<a class="btn btn-primary btn-sm" href="#/quick">⚡ ' + t('enterNow') + '</a>' +
@@ -2729,7 +2735,7 @@ const DB = (function () {
               '<a class="student-card" href="#/student/' + s.id + '?date=' + today + '">' +
                 '<span class="avatar">' + esc(s.name.charAt(0)) + '</span>' +
                 '<span class="s-card-body">' +
-                  '<span class="n">' + esc(s.name) + '</span><br>' +
+                  '<span class="n">' + nameDisplay(s.name) + '</span><br>' +
                   '<span class="m">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') +
                   ' · ' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span>' +
                 '</span>' +
@@ -2852,7 +2858,7 @@ const DB = (function () {
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('reportFor') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">' + esc(student.name) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(student.name) + '</h1>' +
         '<div class="pill" style="margin-top:8px">' + t('para') + ' ' + num(student.para) + ' · ' + t('category') + ' ' + esc(student.category) + ' · ' + esc(trackLabel) + '</div>' +
         (locked ? '<div class="card" style="margin-top:14px;border-color:var(--bad)">' + t('locked') + '</div>' : '') +
         (!existing ? '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('noReportForDay') + '</div>' : '') +
@@ -3092,7 +3098,7 @@ const DB = (function () {
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('historyTitle') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">' + esc(student.name) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(student.name) + '</h1>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
           '<a class="btn btn-ghost btn-sm" href="#/attendance/' + sid + '">📅 ' + t('attendance') + '</a>' +
           '<button class="btn btn-ghost btn-sm" data-action="report-card">🖨 ' + t('reportCard') + '</button>' +
@@ -3161,7 +3167,7 @@ const DB = (function () {
       '<main class="app-main">' +
         '<div class="greet">' +
           '<span class="eyebrow">' + t('welcome') + '</span>' +
-          '<h1>' + esc(session.name) + '</h1>' +
+          '<h1>' + nameDisplay(session.name) + '</h1>' +
           '<span class="pill">' + t('principal') + '</span>' +
         '</div>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center" class="no-print">' +
@@ -3213,7 +3219,7 @@ const DB = (function () {
       '<main class="app-main">' +
         '<div class="greet">' +
           '<span class="eyebrow">' + t('welcome') + '</span>' +
-          '<h1>' + esc(session.name) + '</h1>' +
+          '<h1>' + nameDisplay(session.name) + '</h1>' +
           '<span class="pill">' + t('principal') + '</span>' +
         '</div>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
@@ -3226,7 +3232,7 @@ const DB = (function () {
             '<div class="class-card" style="margin-bottom:10px">' +
               '<a class="class-row" href="#/class/' + c.id + '" style="flex:1">' +
                 '<span class="avatar">' + esc(c.name.charAt(c.name.length - 1)) + '</span>' +
-                '<span><span class="nm">' + esc(c.name) + '</span><br><span class="sub">' + num(counts[c.id]) + ' ' + t('students') + ' · ' + esc(typeLabel) + '</span></span>' +
+                '<span><span class="nm">' + nameDisplay(c.name) + '</span><br><span class="sub">' + num(counts[c.id]) + ' ' + t('students') + ' · ' + esc(typeLabel) + '</span></span>' +
                 '<span style="color:var(--gold)">&rsaquo;</span>' +
               '</a>' +
               '<div class="row-actions" style="padding:10px">' +
@@ -3317,7 +3323,7 @@ const DB = (function () {
           '<div class="empty-note">' + t('trashEmpty') + '</div>' :
             items.map(function (item) {
               const p = item.payload;
-              const label = item.kind === 'class' ? (p.cls ? esc(p.cls.name) : '?') : (p.st ? esc(p.st.name) : '?');
+              const label = item.kind === 'class' ? (p.cls ? nameDisplay(p.cls.name) : '?') : (p.st ? nameDisplay(p.st.name) : '?');
               const sub = item.kind === 'class' ? t('trashClass') + ' · ' + (p.students ? p.students.length : 0) + ' ' + t('students') : t('trashStudent');
               return (
                 '<div class="class-card" style="margin-bottom:10px">' +
@@ -3359,7 +3365,7 @@ const DB = (function () {
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('classes') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">' + esc(cls.name) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(cls.name) + '</h1>' +
         '<div class="pill" style="margin-top:8px">' + typeLabel(cls) + '</div>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="add-student">+ ' + t('addStudent') + '</button>' +
@@ -3376,7 +3382,7 @@ const DB = (function () {
             return (
               '<div class="student-row">' +
                 '<div>' +
-                  '<div style="font-weight:600">' + esc(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span> <span class="badge">' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span> <span class="badge badge-track">' + esc(typeLabel(s)) + '</span></div>' +
+                  '<div style="font-weight:600">' + nameDisplay(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span> <span class="badge">' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span> <span class="badge badge-track">' + esc(typeLabel(s)) + '</span></div>' +
                   '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + ' · ' + t('age') + ' ' + num(s.age) + ' · ' + esc(s.parentName) + ' · ' + esc(s.parentNumber) + '</div>' +
                 '</div>' +
                 '<div class="row-actions">' +
@@ -3398,7 +3404,7 @@ const DB = (function () {
     viewActions['del-student'] = function (btn) {
       const st = students.find(function (s) { return s.id === btn.getAttribute('data-id'); });
       if (!st) return;
-      if (!confirm(t('confirmFirstDelete') + '\n\n' + st.name)) return;
+      if (!confirm(t('confirmFirstDelete') + '\n\n' + nameClean(st.name))) return;
       if (!confirm(t('confirmSecondDelete'))) return;
       DB.deleteStudent(st.id).then(function () { renderClass(session, cid); });
     };
@@ -3567,7 +3573,7 @@ const DB = (function () {
             }).join('') +
           '</select>' +
         '</div>' +
-        '<div class="section-title">' + esc(cls.name) + '</div>' +
+        '<div class="section-title">' + nameDisplay(cls.name) + '</div>' +
         (students.length === 0 ?
           '<div class="empty-note">' + t('noStudents') + '</div>' :
           students.map(function (s) {
@@ -3576,7 +3582,7 @@ const DB = (function () {
             return (
               '<div class="student-row fee-row" data-sid="' + s.id + '">' +
                 '<div>' +
-                  '<div style="font-weight:600"><button class="linky" data-action="fee-history" data-sid="' + s.id + '">' + esc(s.name) + '</button></div>' +
+                  '<div style="font-weight:600"><button class="linky" data-action="fee-history" data-sid="' + s.id + '">' + nameDisplay(s.name) + '</button></div>' +
                 '</div>' +
                 '<div class="fee-toggle">' +
                   '<button class="btn btn-sm ' + (paid ? 'btn-ok' : 'btn-ghost') + '" data-action="set-fee" data-v="1">' + (paid ? '✓ ' : '') + t('paid') + '</button>' +
@@ -3651,7 +3657,7 @@ const DB = (function () {
           '<div class="field"><label>' + t('classes') + '</label>' +
             '<select id="f-class" data-change="f-class">' +
               classes.map(function (c) {
-                return '<option value="' + c.id + '"' + (c.id === cid ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+                return '<option value="' + c.id + '"' + (c.id === cid ? ' selected' : '') + '>' + nameDisplay(c.name) + '</option>';
               }).join('') +
             '</select></div>' +
           '<div class="field"><label>' + t('month') + '</label>' +
@@ -3683,7 +3689,7 @@ const DB = (function () {
                 const paid = ps && ps.paid;
                 return (
                   '<tr data-sid="' + s.id + '">' +
-                    '<td><button class="linky" data-action="p-fee-history" data-sid="' + s.id + '">' + esc(s.name) + '</button></td>' +
+                    '<td><button class="linky" data-action="p-fee-history" data-sid="' + s.id + '">' + nameDisplay(s.name) + '</button></td>' +
                     '<td><input class="amt-in" type="number" step="0.5" min="0" data-sid="' + s.id + '" value="' + amt + '" placeholder="—"></td>' +
                     '<td>' +
                       '<button class="btn btn-sm ' + (paid ? 'btn-ok' : 'btn-ghost') + '" data-action="p-fee" data-v="1">' + (paid ? '✓ ' : '') + t('paid') + '</button>' +
@@ -3751,7 +3757,7 @@ const DB = (function () {
       const ym = ymOf(mo.y, mo.m);
       const ps = (f.payments || {})[ym];
       const paid = ps && ps.paid;
-      const who = ps && ps.markedBy ? (users[ps.markedBy] ? users[ps.markedBy].name : ps.markedBy) : '—';
+      const who = ps && ps.markedBy ? (users[ps.markedBy] ? nameDisplay(users[ps.markedBy].name) : ps.markedBy) : '—';
       const when = ps && ps.markedAt ? new Date(ps.markedAt).toLocaleDateString() : '—';
       return { ym: ym, paid: paid, who: who, when: when, label: monthLabel(mo.y, mo.m) };
     });
@@ -3760,7 +3766,7 @@ const DB = (function () {
     b.className = 'modal-back';
     b.innerHTML =
       '<div class="modal modal-wide">' +
-        '<h3>' + esc(student.name) + ' — ' + t('feeHistory') + '</h3>' +
+        '<h3>' + nameDisplay(student.name) + ' — ' + t('feeHistory') + '</h3>' +
         '<p style="color:var(--ink-soft);font-size:.85rem">' + t('feeHistorySub') + (isPrincipal && f.amount != null ? ' · ' + t('feeAmount') + ' ' + f.amount : '') + '</p>' +
         '<div class="tbl-wrap" style="max-height:60vh;overflow:auto">' +
           '<table class="tbl">' +
@@ -3838,7 +3844,7 @@ const DB = (function () {
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('attendance') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">' + esc(student.name) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(student.name) + '</h1>' +
         '<div class="stat-row">' +
           '<div class="stat"><div class="n">' + num(presentCount) + '</div><div class="l">' + t('presentCount') + '</div></div>' +
           '<div class="stat"><div class="n">' + num(absentCount) + '</div><div class="l">' + t('absentDays') + '</div></div>' +
@@ -3877,7 +3883,7 @@ const DB = (function () {
 
     if (session.role === 'qari') {
       students = await DB.getStudents(session.classId);
-      title = (users[session.id] ? users[session.id].name : t('reports'));
+      title = (users[session.id] ? nameDisplay(users[session.id].name) : t('reports'));
     } else {
       classes = await DB.getClasses();
       cid = (q && q.cid) || (classes[0] ? classes[0].id : '');
@@ -3888,7 +3894,7 @@ const DB = (function () {
       return (
         '<div class="student-row">' +
           '<div>' +
-            '<div style="font-weight:600">' + esc(s.name) + '</div>' +
+            '<div style="font-weight:600">' + nameDisplay(s.name) + '</div>' +
             '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
           '</div>' +
           '<div class="row-actions" style="flex-wrap:wrap">' +
@@ -3910,7 +3916,7 @@ const DB = (function () {
           '<div class="field" style="margin-top:10px"><label>' + t('classes') + '</label>' +
             '<select id="f-class" data-change="f-class">' +
               classes.map(function (c) {
-                return '<option value="' + c.id + '"' + (c.id === cid ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+                return '<option value="' + c.id + '"' + (c.id === cid ? ' selected' : '') + '>' + nameDisplay(c.name) + '</option>';
               }).join('') +
             '</select></div>' : '') +
         '<div class="section-title">' + t('students') + '</div>' +
@@ -3992,7 +3998,7 @@ const DB = (function () {
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('weeklyReport') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">' + esc(student.name) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(student.name) + '</h1>' +
         '<p style="color:var(--ink-soft);font-size:.88rem;margin-top:6px">' + t('weeklySub') + '</p>' +
         '<div class="field" style="margin-top:10px"><label>' + t('weekOf') + '</label>' +
           '<select id="w-week" data-change="w-week">' +
@@ -4055,7 +4061,7 @@ const DB = (function () {
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('monthlyReport') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">' + esc(student.name) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(student.name) + '</h1>' +
         '<p style="color:var(--ink-soft);font-size:.88rem;margin-top:6px">' + t('monthlySub') + '</p>' +
         '<div class="field" style="margin-top:10px"><label>' + t('month') + '</label>' +
           '<select id="m-month" data-change="m-month">' +
@@ -4142,7 +4148,7 @@ const DB = (function () {
       }
       gridRows.push(
         '<div class="class-att-row">' +
-          '<div class="ca-name"><span style="font-weight:600">' + esc(s.name) + '</span>' +
+          '<div class="ca-name"><span style="font-weight:600">' + nameDisplay(s.name) + '</span>' +
             '<span class="ca-stats">' + num(present) + '✓ · ' + num(absent) + '✗</span></div>' +
           '<div class="att-grid">' + cells + '</div>' +
         '</div>'
@@ -4159,7 +4165,7 @@ const DB = (function () {
             '<div class="field"><label>' + t('classes') + '</label>' +
               '<select id="f-class" data-change="f-class">' +
                 classes.map(function (c) {
-                  return '<option value="' + c.id + '"' + (c.id === cid ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+                  return '<option value="' + c.id + '"' + (c.id === cid ? ' selected' : '') + '>' + nameDisplay(c.name) + '</option>';
                 }).join('') +
               '</select></div>' : '') +
           '<div class="field"><label>' + t('month') + '</label>' +
@@ -4269,7 +4275,7 @@ const DB = (function () {
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">⚡ ' + t('quickEntry') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">' + esc(cls.name) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(cls.name) + '</h1>' +
         '<div class="pill" style="margin-top:8px">' + t('date') + ' ' + esc(today) + '</div>' +
         '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('quickEntrySub') + '</div>' +
         '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
@@ -4278,7 +4284,7 @@ const DB = (function () {
             '<div class="card" style="margin-top:12px">' +
               '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
                 '<div>' +
-                  '<div style="font-weight:700">' + esc(s.name) + '</div>' +
+                  '<div style="font-weight:700">' + nameDisplay(s.name) + '</div>' +
                   '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
                 '</div>' +
                 '<div class="seg">' +
@@ -4425,7 +4431,7 @@ const DB = (function () {
         '<div class="student-row" style="display:block;padding:14px">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
             '<div>' +
-              '<div style="font-weight:700">' + esc(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span></div>' +
+              '<div style="font-weight:700">' + nameDisplay(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span></div>' +
               '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
             '</div>' +
             '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
@@ -4442,7 +4448,7 @@ const DB = (function () {
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">📈 ' + t('classProgress') + '</span>' +
-        '<h1 class="h-display" style="font-size:1.3rem">' + esc(cls.name) + '</h1>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(cls.name) + '</h1>' +
         '<div class="field" style="margin-top:12px">' +
           '<label>' + t('month') + '</label>' +
           '<select id="f-month" data-change="f-month">' +
@@ -4500,7 +4506,7 @@ const DB = (function () {
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows.push([cls.name, s.name, s.para, s.currentPage || '', s.fullTime ? 'Full Time' : 'Part Time', s.category, s.parentName, s.parentNumber, ds,
+        rows.push([nameClean(cls.name), nameClean(s.name), s.para, s.currentPage || '', s.fullTime ? 'Full Time' : 'Part Time', s.category, s.parentName, s.parentNumber, ds,
           r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent', r.pages || '', r.lines || '',
           r.present ? (r.sabqiDone ? 'Done' : 'Not done') : '',
           r.present ? manzilEn(r, manzilIsTri) : '',
@@ -4517,7 +4523,7 @@ const DB = (function () {
     const cls = all.classes.find(function (c) { return c.id === cid; });
     const csv = '\uFEFFClass,Student,Para,Current Page,Type,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Manzil Pages,Manzil Lines,Comment\n' +
       buildCsvRows(all, cid).join('\n');
-    download('madrasa-' + cls.name.replace(/\s+/g, '-') + '-reports.csv', csv);
+    download('madrasa-' + nameClean(cls.name).replace(/\s+/g, '-') + '-reports.csv', csv);
     toast(I18N.t('exportExcel'));
   }
 
@@ -4556,12 +4562,12 @@ const DB = (function () {
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows += '<tr><td>' + esc(s.name) + '</td><td>' + ds + '</td><td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
+        rows += '<tr><td>' + nameDisplay(s.name) + '</td><td>' + ds + '</td><td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
       });
     });
-    printHtml(cls.name + ' — Reports', rows, '<tr><th>Student</th><th>Date</th><th>Status</th><th>Sabaq</th><th>Sabqi</th><th>Manzil</th></tr>');
+    printHtml(nameDisplay(cls.name) + ' — Reports', rows, '<tr><th>Student</th><th>Date</th><th>Status</th><th>Sabaq</th><th>Sabqi</th><th>Manzil</th></tr>');
   }
 
   async function exportAllPdf() {
@@ -4575,7 +4581,7 @@ const DB = (function () {
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows += '<tr><td>' + esc(cls.name) + '</td><td>' + esc(s.name) + '</td><td>' + ds + '</td>' +
+        rows += '<tr><td>' + nameDisplay(cls.name) + '</td><td>' + nameDisplay(s.name) + '</td><td>' + ds + '</td>' +
           '<td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
@@ -4620,7 +4626,7 @@ const DB = (function () {
     });
 
     const w = window.open('', '_blank');
-    w.document.write('<!DOCTYPE html><html><head><title>' + esc(st.name) + ' — Report Card</title><style>' +
+    w.document.write('<!DOCTYPE html><html><head><title>' + nameDisplay(st.name) + ' — Report Card</title><style>' +
       'body{font-family:Georgia,serif;color:#111;padding:26px 30px}' +
       '.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0E6B3C;padding-bottom:8px}' +
       'h1{font-size:22px;margin:0;color:#0E6B3C}' +
@@ -4638,12 +4644,12 @@ const DB = (function () {
       '</style></head><body>' +
       '<div class="head"><div>' +
         '<h1>Madrasa Dar ul Ma\'arij</h1>' +
-        '<div class="sub">Report Card — ' + esc(cls.name) + '</div>' +
+        '<div class="sub">Report Card — ' + nameDisplay(cls.name) + '</div>' +
       '</div><div class="right">Generated: ' + new Date().toLocaleDateString() + '</div></div>' +
 
       '<h2>Student</h2>' +
       '<div class="grid">' +
-        '<div class="g"><b>' + esc(st.name) + '</b>' + 'Student Name</div>' +
+        '<div class="g"><b>' + nameDisplay(st.name) + '</b>' + 'Student Name</div>' +
         '<div class="g"><b>' + st.para + '</b>Current Para</div>' +
         '<div class="g"><b>' + (st.currentPage || '—') + '</b>Current Page</div>' +
         '<div class="g"><b>' + (st.fullTime ? 'Full-time' : 'Part-time') + '</b>Type</div>' +

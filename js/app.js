@@ -408,7 +408,7 @@
         const r = reps[k];
         return '<div class="rep-row">' +
           '<span>' + fmtDate(k) + '</span>' +
-          '<span>' + (r.present ? (r.late ? '🕐 ' + t('present') : '✓ ' + t('present')) : '✗ ' + t('absent')) + '</span>' +
+          '<span>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent')) + '</span>' +
           (r.sabaqDone ? '<span class="badge badge-ok">' + t('sabaq') + ': ' + (r.pages || 0) + 'p' + (r.lines ? '+' + r.lines + 'l' : '') + '</span>' : '<span>—</span>') +
           (r.sabqiDone ? '<span class="badge">' + t('sabqi') + '</span>' : '') +
           (r.manzilDone ? '<span class="badge badge-ok">' + t('manzil') + '</span>' : '') +
@@ -563,7 +563,6 @@
     return {
       sid: sid, ds: ds,
       present: r.present !== undefined ? r.present : true,
-      late: !!r.late,
       sabaqDone: !!r.sabaqDone,
       sabqiDone: !!r.sabqiDone,
       manzilDone: !!r.manzilDone,
@@ -578,11 +577,10 @@
 
   function captureWidgets() {
     const g = function (id) { return document.getElementById(id); };
-    const s1 = g('sw-sabaq'), s2 = g('sw-sabqi'), s3 = g('sw-manzil'), s4 = g('sw-late');
+    const s1 = g('sw-sabaq'), s2 = g('sw-sabqi'), s3 = g('sw-manzil');
     if (s1) draft.sabaqDone = s1.checked;
     if (s2) draft.sabqiDone = s2.checked;
     if (s3) draft.manzilDone = s3.checked;
-    if (s4) draft.late = s4.checked;
     const pg = g('f-pages'), ln = g('f-lines');
     if (pg) draft.pages = parseInt(pg.value, 10) || 0;
     if (ln) draft.lines = parseInt(ln.value, 10) || 0;
@@ -597,7 +595,7 @@
   }
 
   function wireDraftAutosave() {
-    const ids = ['sw-sabaq', 'sw-sabqi', 'sw-manzil', 'sw-late', 'f-pages', 'f-lines', 'f-mpages', 'f-mlines', 'f-comment'];
+    const ids = ['sw-sabaq', 'sw-sabqi', 'sw-manzil', 'f-pages', 'f-lines', 'f-mpages', 'f-mlines', 'f-comment'];
     ids.forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
@@ -660,14 +658,9 @@
             '<button type="button" class="opt present' + (rep.present ? ' on present' : '') + '" data-action="set-present" data-v="1">' + t('present') + '</button>' +
             '<button type="button" class="opt absent' + (!rep.present ? ' on absent' : '') + '" data-action="set-present" data-v="0">' + t('absent') + '</button>' +
           '</div>' +
+          '</div>' +
           (rep.present ?
-            '<div class="tick-row" style="margin-top:8px">' +
-              '<div><div class="lbl">' + t('late') + '</div><div class="sub">' + t('lateSub') + '</div></div>' +
-              '<label class="switch"><input type="checkbox" id="sw-late"' + (rep.late ? ' checked' : '') + (locked ? ' disabled' : '') + '><span class="track"></span></label>' +
-            '</div>' : '') +
-        '</div>' +
-        (rep.present ?
-          '<div class="card" style="margin-top:14px">' +
+            '<div class="card" style="margin-top:14px">' +
             '<div class="tick-row">' +
               '<div><div class="lbl">' + t('sabaq') + '</div><div class="sub">' + t('sabaqSub') + '</div></div>' +
               '<label class="switch"><input type="checkbox" id="sw-sabaq"' + (rep.sabaqDone ? ' checked' : '') + (locked ? ' disabled' : '') + '><span class="track"></span></label>' +
@@ -725,7 +718,6 @@
       if (v) nav('student/' + sid + '?date=' + v);
     };
     if (rep.present) {
-      document.getElementById('sw-late').addEventListener('change', function () { draft.late = this.checked; });
       document.getElementById('sw-sabaq').addEventListener('change', function () {
         draft.sabaqDone = this.checked;
         document.getElementById('reveal-sabaq').classList.toggle('open', this.checked);
@@ -760,7 +752,6 @@
       captureWidgets();
       const rep2 = {
         present: draft.present,
-        late: draft.present && draft.late,
         sabaqDone: draft.present && draft.sabaqDone,
         pages: draft.present && draft.sabaqDone ? (draft.pages || null) : null,
         lines: draft.present && draft.sabaqDone ? (draft.lines || null) : null,
@@ -2068,7 +2059,6 @@
       const r = dayReps[s.id] || {};
       state[s.id] = {
         present: r.present !== undefined ? r.present : true,
-        late: !!r.late,
         sabqiDone: !!r.sabqiDone,
         manzilDone: !!r.manzilDone,
         manzil: r.manzil || 'half',
@@ -2122,10 +2112,6 @@
       '</div>';
       return (
         '<div style="margin-top:10px' + (st.present ? '' : ';display:none') + '" id="qe-body-' + s.id + '">' +
-          '<div class="tick-row" style="margin-bottom:6px">' +
-            '<div><div class="lbl" style="font-size:.88rem">' + t('late') + '</div><div class="sub">' + t('lateSub') + '</div></div>' +
-            '<label class="switch"><input type="checkbox" id="qe-late-' + s.id + '" data-qe="late" data-sid="' + s.id + '"' + (st.late ? ' checked' : '') + '><span class="track"></span></label>' +
-          '</div>' +
           out +
         '</div>'
       );
@@ -2235,8 +2221,6 @@
         });
         const sabqi = document.getElementById('qe-sabqi-' + s.id);
         if (sabqi) sabqi.addEventListener('change', function () { state[s.id].sabqiDone = sabqi.checked; });
-        const late = document.getElementById('qe-late-' + s.id);
-        if (late) late.addEventListener('change', function () { state[s.id].late = late.checked; });
         const manzil = document.getElementById('qe-manzil-' + s.id);
         if (manzil) manzil.addEventListener('change', function () {
           state[s.id].manzilDone = manzil.checked;
@@ -2277,7 +2261,6 @@
         const manzilIsTri = track === 'hifz';
         const rep = {
           present: st2.present,
-          late: st2.present && st2.late,
           sabaqDone: st2.present && st2.pages + st2.lines > 0,
           pages: st2.present && st2.pages > 0 ? st2.pages : null,
           lines: st2.present && st2.lines > 0 ? st2.lines : null,
@@ -2425,7 +2408,7 @@
         const ds = k.split('|')[1];
         const r = all.reports[k];
         rows.push([nameClean(cls.name), nameClean(s.name), s.para, s.currentPage || '', s.fullTime ? 'Full Time' : 'Part Time', shiftEn(s.shift), s.category, s.parentName, s.parentNumber, ds,
-          r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent', r.pages || '', r.lines || '',
+          r.present ? 'Present' : 'Absent', r.pages || '', r.lines || '',
           r.present ? (r.sabqiDone ? 'Done' : 'Not done') : '',
           r.present ? manzilEn(r, manzilIsTri) : '',
           !manzilIsTri && r.present ? (r.manzilPages || '') : '',
@@ -2480,7 +2463,7 @@
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows += '<tr><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td><td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
+        rows += '<tr><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td><td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
       });
@@ -2500,7 +2483,7 @@
         const ds = k.split('|')[1];
         const r = all.reports[k];
         rows += '<tr><td>' + nameDisplay(cls.name) + '</td><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td>' +
-          '<td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
+'<td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
       });
@@ -2535,7 +2518,7 @@
       const r = x.r;
       repRows += '<tr>' +
         '<td>' + x.ds + '</td>' +
-        '<td>' + (r.present ? (r.late ? 'Present (Late)' : 'Present') : 'Absent') + '</td>' +
+        '<td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
         '<td>' + (r.present && r.sabaqDone ? (r.pages ? r.pages + 'p' : '') + (r.lines ? '+' + r.lines + 'l' : '') : '—') + '</td>' +
         '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
         '<td>' + (r.present ? (r.manzilDone ? manzilEn(r, manzilIsTri) : '—') : '—') + '</td>' +

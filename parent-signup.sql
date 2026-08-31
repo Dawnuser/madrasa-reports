@@ -49,13 +49,7 @@ drop policy if exists "parent classes" on classes;
 create policy "parent classes" on classes
   for select using (auth.role() = 'authenticated' and exists (select 1 from profiles where id = auth.uid() and role = 'parent'));
 
--- 4) Parents need read access to fee settings + payments for their own children.
+-- 4) Parents must NOT see fees. Revoke any previously-granted read access
+--    to fee settings + payments (parents should have no idea about fees).
 drop policy if exists "parent fee_settings" on fee_settings;
-create policy "parent fee_settings" on fee_settings for select using (
-  exists (select 1 from students s where s.id = fee_settings.student_id and s.parent_id = auth.uid())
-);
-
 drop policy if exists "parent fee_payments" on fee_payments;
-create policy "parent fee_payments" on fee_payments for select using (
-  exists (select 1 from students s where s.id = fee_payments.student_id and s.parent_id = auth.uid())
-);

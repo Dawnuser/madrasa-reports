@@ -2979,8 +2979,8 @@
   function topbar(showBack) {
     return '' +
       '<header class="topbar no-print">' +
-        (showBack ? '<button class="icon-btn" data-action="back" aria-label="back">&larr;</button>' : '') +
         '<div class="brand" data-action="home" style="cursor:pointer" title="Home">' +
+          (showBack ? '<button class="icon-btn" data-action="back" aria-label="back">&larr;</button>' : '') +
           '<img src="assets/logo.png" alt="">' +
           '<span class="t1">' + esc(I18N.t('appName')) + '</span>' +
         '</div>' +

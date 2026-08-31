@@ -718,3 +718,27 @@ table.tbl { width: 100%; border-collapse: collapse; background: var(--surface); 
 [lang="ar"] .class-row .sub,
 [lang="ar"] .tick-row .sub { font-family: var(--font-arabic); }
 [lang="ar"] .login-title .urdu { font-family: var(--font-arabic); font-size: 1.8rem; line-height: 1.6; }
+
+/* ---------- Parent portal (multi-student + tabs) ---------- */
+.p-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.p-chip {
+  padding: 8px 16px; border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink-soft);
+  font-weight: 600; font-size: .88rem; cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.p-chip:hover { border-color: var(--gold); color: var(--ink); }
+.p-chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.p-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; border-bottom: 1px solid var(--line); padding-bottom: 0; }
+.p-tab {
+  padding: 10px 16px; border: none; border-bottom: 3px solid transparent;
+  background: transparent; color: var(--ink-soft);
+  font-weight: 600; font-size: .9rem; cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.p-tab:hover { color: var(--ink); }
+.p-tab.on { color: var(--brand-deep); border-bottom-color: var(--gold); }
+.p-card { margin-top: 14px; padding: 16px; }
+.p-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tbl tr.cur td { background: color-mix(in srgb, var(--gold) 10%, transparent); }

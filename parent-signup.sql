@@ -45,6 +45,7 @@ $$ language plpgsql security definer;
 
 -- 3) Parents need read access to class names (for the parent dashboard
 --    "Class: ..." label) and to their own child's student row.
+drop policy if exists "parent classes" on classes;
 create policy "parent classes" on classes
   for select using (auth.role() = 'authenticated' and exists (select 1 from profiles where id = auth.uid() and role = 'parent'));
 

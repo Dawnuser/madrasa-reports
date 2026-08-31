@@ -20,6 +20,7 @@
   }
 
   function num(n) {
+    if (n === null || n === undefined || n === '') return '—';
     return I18N.digits(n);
   }
 
@@ -629,11 +630,7 @@
     const manzilIsTri = parentTrack(st, classes) === 'hifz';
     const now = new Date();
     const months = feeMonths(6);
-    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
-    if (q && q.ym) {
-      const p = q.ym.split('-').map(Number);
-      sel = { y: p[0], m: p[1] };
-    }
+    const sel = safeYm(q);
     const reps = await DB.getMonthReports(st.id, sel.y, sel.m);
     const daysInMonth = new Date(sel.y, sel.m, 0).getDate();
     const today = todayDs();
@@ -686,7 +683,7 @@
     const t = I18N.t;
     const mondays = lastNMondays(6);
     let wk = weekOfMonday(todayDs());
-    if (q && q.wk) wk = q.wk;
+    if (q && q.wk && mondays.indexOf(q.wk) >= 0) wk = q.wk;
     const auto = { newSafa: 0, sabaqDays: 0 };
     const weekReps = await DB.getReportRange(st.id, wk, DB.addDays(wk, 6));
     for (let i = 0; i < 7; i++) {
@@ -725,11 +722,9 @@
 
   async function parentMonthly(st, classes, q) {
     const t = I18N.t;
-    const now = new Date();
-    let ym = ymOf(now.getFullYear(), now.getMonth() + 1);
-    if (q && q.ym) ym = q.ym;
-    const p = ym.split('-').map(Number);
-    const reps = await DB.getMonthReports(st.id, p[0], p[1]);
+    const sel = safeYm(q);
+    const ym = ymOf(sel.y, sel.m);
+    const reps = await DB.getMonthReports(st.id, sel.y, sel.m);
     let present = 0, absent = 0, total = 0;
     Object.keys(reps).forEach(function (ds) {
       const r = reps[ds];
@@ -765,13 +760,8 @@
 
   async function parentAttendance(st, q) {
     const t = I18N.t;
-    const now = new Date();
     const months = feeMonths(6);
-    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
-    if (q && q.ym) {
-      const p = q.ym.split('-').map(Number);
-      sel = { y: p[0], m: p[1] };
-    }
+    const sel = safeYm(q);
     const reps = await DB.getMonthReports(st.id, sel.y, sel.m);
     const daysInMonth = new Date(sel.y, sel.m, 0).getDate();
     const today = todayDs();
@@ -1196,11 +1186,7 @@
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({ y: d.getFullYear(), m: d.getMonth() + 1 });
     }
-    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
-    if (q && q.ym) {
-      const parts = q.ym.split('-').map(Number);
-      sel = { y: parts[0], m: parts[1] };
-    }
+    const sel = safeYm(q);
     const reps = await DB.getMonthReports(sid, sel.y, sel.m);
     const daysInMonth = new Date(sel.y, sel.m, 0).getDate();
     const today = todayDs();
@@ -1706,7 +1692,7 @@
             type: document.getElementById('m-track').value || null,
             shift: document.getElementById('m-shift').value || null,
             parentName: document.getElementById('m-pname').value.trim(),
-            parentNumber: document.getElementById('m-pphone').value.replace(/\D/g, ''),
+            parentNumber: document.getElementById('m-pphone').value.replace(/[^\d+]/g, ''),
             category: document.getElementById('m-cat').value
           });
           if (!st2.name) { toast(I18N.get() === 'ur' ? 'نام درج کریں' : 'Enter a name'); return; }
@@ -1735,6 +1721,16 @@
     return y + '-' + String(m).padStart(2, '0');
   }
 
+  function safeYm(q) {
+    const now = new Date();
+    if (!q || !q.ym) return { y: now.getFullYear(), m: now.getMonth() + 1 };
+    const m = String(q.ym).match(/^(\d{4})-(\d{2})$/);
+    if (!m) return { y: now.getFullYear(), m: now.getMonth() + 1 };
+    const mo = parseInt(m[2], 10);
+    if (mo < 1 || mo > 12) return { y: now.getFullYear(), m: now.getMonth() + 1 };
+    return { y: parseInt(m[1], 10), m: mo };
+  }
+
   /* shared in-place button painter */
   function paintFeeBtns(row, paid, t) {
     const btns = row.querySelectorAll('[data-v]');
@@ -1753,16 +1749,12 @@
     const t = I18N.t;
     if (session.role !== 'qari') { redirect('dashboard'); return; }
     const cls = await DB.getClass(session.classId);
+    if (!cls) { redirect('dashboard'); return; }
     const students = await DB.getStudents(session.classId);
     const fees = await DB.getAllFees();
     const months = feeMonths(12);
-    const now = new Date();
-    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
     const { q } = parseHash();
-    if (q && q.ym) {
-      const p = q.ym.split('-').map(Number);
-      sel = { y: p[0], m: p[1] };
-    }
+    const sel = safeYm(q);
     const ym = ymOf(sel.y, sel.m);
 
     const payStatus = function (sid) {
@@ -1842,13 +1834,8 @@
     const classes = await DB.getClasses();
     const fees = await DB.getAllFees();
     const months = feeMonths(12);
-    const now = new Date();
-    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
     const { q } = parseHash();
-    if (q && q.ym) {
-      const p = q.ym.split('-').map(Number);
-      sel = { y: p[0], m: p[1] };
-    }
+    const sel = safeYm(q);
     const ym = ymOf(sel.y, sel.m);
     let cid = (q && q.cid) || (classes[0] ? classes[0].id : '');
     const students = cid ? await DB.getStudents(cid) : [];
@@ -2021,14 +2008,9 @@
     if (!student) { redirect('dashboard'); return; }
     if (session.role === 'qari' && session.classId !== student.classId) { redirect('dashboard'); return; }
 
-    const now = new Date();
     const months = feeMonths(6);
-    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
     const { q } = parseHash();
-    if (q && q.ym) {
-      const p = q.ym.split('-').map(Number);
-      sel = { y: p[0], m: p[1] };
-    }
+    const sel = safeYm(q);
     const reps = await DB.getMonthReports(sid, sel.y, sel.m);
     const daysInMonth = new Date(sel.y, sel.m, 0).getDate();
     const today = todayDs();
@@ -2187,7 +2169,7 @@
     const mondays = lastNMondays(6);
     let wk = weekOfMonday(todayDs());
     const { q } = parseHash();
-    if (q && q.wk) wk = q.wk;
+    if (q && q.wk && mondays.indexOf(q.wk) >= 0) wk = q.wk;
 
     const auto = { newSafa: 0, sabaqDays: 0 };
     const weekReps = await DB.getReportRange(sid, wk, DB.addDays(wk, 6));
@@ -2258,13 +2240,10 @@
     const isPrincipal = session.role === 'principal';
     if (!isQari && !isPrincipal) { redirect('dashboard'); return; }
 
-    const now = new Date();
-    let ym = ymOf(now.getFullYear(), now.getMonth() + 1);
     const { q } = parseHash();
-    if (q && q.ym) ym = q.ym;
-
-    const p = ym.split('-').map(Number);
-    const reps = await DB.getMonthReports(sid, p[0], p[1]);
+    const sel = safeYm(q);
+    const ym = ymOf(sel.y, sel.m);
+    const reps = await DB.getMonthReports(sid, sel.y, sel.m);
     let present = 0, absent = 0, total = 0;
     Object.keys(reps).forEach(function (ds) {
       const r = reps[ds];
@@ -2333,12 +2312,7 @@
       cid = (q && q.cid) || (classes[0] ? classes[0].id : '');
     }
     const students = await DB.getStudents(cid);
-    const now = new Date();
-    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
-    if (q && q.ym) {
-      const pp = q.ym.split('-').map(Number);
-      sel = { y: pp[0], m: pp[1] };
-    }
+    const sel = safeYm(q);
     const ym = ymOf(sel.y, sel.m);
     const months = feeMonths(6);
     const daysInMonth = new Date(sel.y, sel.m, 0).getDate();
@@ -2492,7 +2466,6 @@
         '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(cls.name) + '</h1>' +
         '<div class="pill" style="margin-top:8px">' + t('date') + ' ' + esc(today) + '</div>' +
         '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('quickEntrySub') + '</div>' +
-        '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
         quickEntryGroups() +
         '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
       '</main>';
@@ -2664,13 +2637,8 @@
     const cls = await DB.getClass(cid);
     if (!cls) { redirect('principal'); return; }
     const students = await DB.getStudents(cid);
-    const now = new Date();
-    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
     const { q } = parseHash();
-    if (q && q.ym) {
-      const pp = q.ym.split('-').map(Number);
-      sel = { y: pp[0], m: pp[1] };
-    }
+    const sel = safeYm(q);
     const ym = ymOf(sel.y, sel.m);
     const months = feeMonths(6);
     const today = todayDs();
@@ -2775,7 +2743,7 @@
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows.push([nameClean(cls.name), nameClean(s.name), s.para, s.currentPage || '', s.fullTime ? 'Full Time' : 'Part Time', shiftEn(s.shift), s.category, s.parentName, s.parentNumber, ds,
+        rows.push([nameClean(cls ? cls.name : ''), nameClean(s.name), s.para, s.currentPage || '', s.fullTime ? 'Full Time' : 'Part Time', shiftEn(s.shift), s.category, s.parentName, s.parentNumber, ds,
           r.present ? 'Present' : 'Absent', r.pages || '', r.lines || '',
           r.present ? (r.sabqiDone ? 'Done' : 'Not done') : '',
           r.present ? manzilEn(r, manzilIsTri) : '',
@@ -2792,7 +2760,7 @@
     const cls = all.classes.find(function (c) { return c.id === cid; });
     const csv = '\uFEFFClass,Student,Para,Current Page,Type,Shift,Category,Parent Name,Parent Number,Date,Present,Sabaq Pages,Sabaq Lines,Sabqi,Manzil,Manzil Pages,Manzil Lines,Comment\n' +
       buildCsvRows(all, cid).join('\n');
-    download('madrasa-' + nameClean(cls.name).replace(/\s+/g, '-') + '-reports.csv', csv);
+    download('madrasa-' + nameClean(cls ? cls.name : 'class').replace(/\s+/g, '-') + '-reports.csv', csv);
     toast(I18N.t('exportExcel'));
   }
 
@@ -2806,6 +2774,7 @@
 
   function printHtml(title, rows, thead) {
     const w = window.open('', '_blank');
+    if (!w) { toast(I18N.t('popupBlocked')); return; }
     w.document.write('<!DOCTYPE html><html><head><title>' + title + '</title><style>' +
       'body{font-family:Georgia,serif;color:#111;padding:30px}h1{font-size:20px;border-bottom:2px solid #0E6B3C;padding-bottom:8px}' +
       'table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}' +
@@ -2836,7 +2805,7 @@
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
       });
     });
-    printHtml(nameDisplay(cls.name) + ' — Reports', rows, '<tr><th>Student</th><th>Date</th><th>Status</th><th>Sabaq</th><th>Sabqi</th><th>Manzil</th></tr>');
+    printHtml(nameDisplay(cls ? cls.name : '') + ' — Reports', rows, '<tr><th>Student</th><th>Date</th><th>Status</th><th>Sabaq</th><th>Sabqi</th><th>Manzil</th></tr>');
   }
 
   async function exportAllPdf() {
@@ -2850,7 +2819,7 @@
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows += '<tr><td>' + nameDisplay(cls.name) + '</td><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td>' +
+        rows += '<tr><td>' + nameDisplay(cls ? cls.name : '') + '</td><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td>' +
 '<td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
@@ -2864,7 +2833,8 @@
     const st = all.students.find(function (s) { return s.id === sid; });
     if (!st) return;
     const cls = all.classes.find(function (c) { return c.id === st.classId; });
-    const trackRc = st.type || (cls && cls.type) || 'hifz';
+    if (!cls) { toast(I18N.t('classNotFound')); return; }
+    const trackRc = st.type || cls.type || 'hifz';
     const manzilIsTri = trackRc === 'hifz';
     const reps = [];
     let presentCount = 0, absentCount = 0, sabaqDays = 0, sabqiDays = 0, manzilDays = 0, totalPages = 0, totalLines = 0;
@@ -2895,6 +2865,7 @@
     });
 
     const w = window.open('', '_blank');
+    if (!w) { toast(I18N.t('popupBlocked')); return; }
     w.document.write('<!DOCTYPE html><html><head><title>' + nameDisplay(st.name) + ' — Report Card</title><style>' +
       'body{font-family:Georgia,serif;color:#111;padding:26px 30px}' +
       '.head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0E6B3C;padding-bottom:8px}' +

@@ -168,7 +168,9 @@
     } else if (a === 'go-password') {
       nav('password');
     } else if (a === 'install-app') {
-      DB.installApp();
+      const hint = DB.installHint();
+      if (hint === 'native') DB.installApp();
+      else showInstallHelp(hint);
     }
   });
 
@@ -264,6 +266,7 @@
     app.innerHTML = '' +
       '<div class="login-wrap">' +
         '<div style="position:fixed;top:14px;inset-inline-end:14px;display:flex;gap:8px">' +
+          (DB.installHint ? '<button class="icon-btn" data-action="install-app" title="' + esc(t('parentInstallApp')) + '">📲</button>' : '') +
           '<button class="icon-btn" data-action="toggle-lang">' + nextLangLabel() + '</button>' +
           '<button class="icon-btn" data-action="toggle-theme">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '☾') + '</button>' +
         '</div>' +
@@ -396,6 +399,7 @@
     app.innerHTML = '' +
       '<div class="login-wrap">' +
         '<div style="position:fixed;top:14px;inset-inline-end:14px;display:flex;gap:8px">' +
+          (DB.installHint ? '<button class="icon-btn" data-action="install-app" title="' + esc(t('parentInstallApp')) + '">📲</button>' : '') +
           '<button class="icon-btn" data-action="toggle-lang">' + nextLangLabel() + '</button>' +
           '<button class="icon-btn" data-action="toggle-theme">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '☾') + '</button>' +
         '</div>' +
@@ -528,7 +532,7 @@
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="invite-more">+ ' + t('invite') + '</button>' +
           '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
-          (DB.installable && typeof DB.installable === 'function' && DB.installable() ?
+          (DB.installHint ?
             '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
         '</div>' +
         (students.length > 1 ? '<div class="p-chips">' + chips + '</div>' : '') +
@@ -2001,6 +2005,32 @@
     });
   }
 
+  function showInstallHelp(hint) {
+    const t = I18N.t;
+    const b = document.createElement('div');
+    b.className = 'modal-back';
+    var steps;
+    if (hint === 'ios') {
+      steps = t('installHelpIOS');
+    } else {
+      steps = t('installHelpAndroid');
+    }
+    b.innerHTML =
+      '<div class="modal">' +
+        '<h3>📲 ' + t('installHelpTitle') + '</h3>' +
+        '<p style="margin-bottom:12px;line-height:1.7">' + esc(steps) + '</p>' +
+        '<p style="color:var(--ink-soft);font-size:.85rem">' + esc(t('installHelpNote')) + '</p>' +
+        '<div style="display:flex;justify-content:flex-end;margin-top:16px">' +
+          '<button class="btn btn-ghost" data-action="install-close">' + t('close') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(b);
+    b.addEventListener('click', function (e) {
+      const a = e.target.closest('[data-action]');
+      if ((a && a.getAttribute('data-action') === 'install-close') || e.target === b) b.remove();
+    });
+  }
+
   /* ---------- ATTENDANCE — per student, monthly grid ---------- */
   async function renderAttendance(session, sid) {
     const t = I18N.t;
@@ -2985,8 +3015,7 @@
           '<span class="t1">' + esc(I18N.t('appName')) + '</span>' +
         '</div>' +
         '<div class="spacer"></div>' +
-        (DB.installable && typeof DB.installable === 'function' && DB.installable() ?
-          '<button class="icon-btn" data-action="install-app" title="' + esc(I18N.t('parentInstallApp')) + '">📲</button>' : '') +
+        (DB.installHint ? '<button class="icon-btn" data-action="install-app" title="' + esc(I18N.t('parentInstallApp')) + '">📲</button>' : '') +
         '<button class="icon-btn" data-action="go-password" title="' + esc(I18N.t('changePassword')) + '">🔐</button>' +
         '<button class="icon-btn" data-action="toggle-lang" title="Language">' +
           esc(nextLangLabel()) +

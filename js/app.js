@@ -526,9 +526,9 @@
         '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(session.name) + '</h1>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="invite-more">+ ' + t('invite') + '</button>' +
-          '<a class="btn btn-ghost btn-sm" href="#/password">ðŸ” ' + t('changePassword') + '</a>' +
+          '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
           (DB.installable && typeof DB.installable === 'function' && DB.installable() ?
-            '<button class="btn btn-ghost btn-sm" data-action="install-app">ðŸ“² ' + t('parentInstallApp') + '</button>' : '') +
+            '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
         '</div>' +
         (students.length > 1 ? '<div class="p-chips">' + chips + '</div>' : '') +
         '<div class="p-tabs">' + tabBar + '</div>' +
@@ -558,26 +558,26 @@
   }
 
   function parentManzilName(r, manzilIsTri) {
-    if (!r.present || !r.manzilDone) return 'â€”';
+    if (!r.present || !r.manzilDone) return '—';
     if (manzilIsTri) {
       if (r.manzil === 'half') return I18N.t('halfPara');
       if (r.manzil === 'third') return I18N.t('thirdPara');
       if (r.manzil === 'full') return I18N.t('fullPara');
-      return 'â€”';
+      return '—';
     }
     const parts = [];
     if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
     if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
-    return parts.join('+') || 'â€”';
+    return parts.join('+') || '—';
   }
 
   function parentSabaqCell(r) {
-    if (!r.present) return 'â€”';
+    if (!r.present) return '—';
     if (!r.sabaqDone) return I18N.t('notDone');
     const parts = [];
     if (r.pages) parts.push(num(r.pages) + 'p');
     if (r.lines) parts.push(num(r.lines) + 'l');
-    return parts.join('+') || 'â€”';
+    return parts.join('+') || '—';
   }
 
   async function parentOverview(st, classes) {
@@ -595,10 +595,10 @@
       const r = reps[k];
       return '<tr class="' + (r.present ? '' : 'absent') + '">' +
         '<td>' + fmtDate(k) + '</td>' +
-        '<td>' + (r.present ? 'âœ“ ' + t('present') : 'âœ— ' + t('absent')) + '</td>' +
+        '<td>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent')) + '</td>' +
         '<td>' + parentSabaqCell(r) + '</td>' +
-        '<td>' + (r.present ? (r.sabqiDone ? 'âœ“' : 'â€”') : 'â€”') + '</td>' +
-        '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : 'â€”') + '</td>' +
+        '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
+        '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : '—') + '</td>' +
       '</tr>';
     }).join('');
 
@@ -607,8 +607,8 @@
         '<div class="p-card-top">' +
           '<div>' +
             '<div style="font-weight:800;font-size:1.05rem">' + nameDisplay(st.name) + '</div>' +
-            '<div class="meta">' + t('parentClass') + ': ' + nameDisplay(cls ? cls.name : 'â€”') + ' Â· ' + t('para') + ' ' + num(st.para) +
-              (st.currentPage ? ' Â· ' + t('page') + ' ' + num(st.currentPage) : '') + '</div>' +
+            '<div class="meta">' + t('parentClass') + ': ' + nameDisplay(cls ? cls.name : '—') + ' · ' + t('para') + ' ' + num(st.para) +
+              (st.currentPage ? ' · ' + t('page') + ' ' + num(st.currentPage) : '') + '</div>' +
           '</div>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
 '<span class="badge badge-ok">' + t('parentPresentCount') + ': ' + num(present) + '</span>' +
@@ -672,11 +672,11 @@
             return '<tr class="' + (r.present ? '' : 'absent') + '">' +
               '<td class="num">' + num(parseInt(row.ds.slice(8), 10)) + '</td>' +
               '<td>' + fmtDate(row.ds) + '</td>' +
-              '<td>' + (r.present ? 'âœ“ ' + t('present') : 'âœ— ' + t('absent')) + '</td>' +
+              '<td>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent')) + '</td>' +
               '<td>' + parentSabaqCell(r) + '</td>' +
-              '<td>' + (r.present ? (r.sabqiDone ? 'âœ“' : 'â€”') : 'â€”') + '</td>' +
-              '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : 'â€”') + '</td>' +
-              '<td class="cmt">' + (r.comment ? esc(r.comment) : 'â€”') + '</td>' +
+              '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
+              '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : '—') + '</td>' +
+              '<td class="cmt">' + (r.comment ? esc(r.comment) : '—') + '</td>' +
             '</tr>';
           }).join('') + '</tbody></table></div>')
     );
@@ -716,8 +716,8 @@
           '<div class="stat"><div class="n">' + num(saved && saved.newSafa != null ? saved.newSafa : auto.newSafa) + '</div><div class="l">' + t('newSafa') + '</div></div>' +
           '<div class="stat"><div class="n">' + num(saved && saved.sabaqDays != null ? saved.sabaqDays : auto.sabaqDays) + '</div><div class="l">' + t('sabaqDays') + '</div></div>' +
         '</div>' +
-        '<div class="field" style="margin-top:10px"><label>' + t('manzilComment') + '</label><div class="meta">' + (saved && saved.manzilComment ? esc(saved.manzilComment) : 'â€”') + '</div></div>' +
-        '<div class="field"><label>' + t('bigComment') + '</label><div class="meta">' + (saved && saved.bigComment ? esc(saved.bigComment) : 'â€”') + '</div></div>' +
+        '<div class="field" style="margin-top:10px"><label>' + t('manzilComment') + '</label><div class="meta">' + (saved && saved.manzilComment ? esc(saved.manzilComment) : '—') + '</div></div>' +
+        '<div class="field"><label>' + t('bigComment') + '</label><div class="meta">' + (saved && saved.bigComment ? esc(saved.bigComment) : '—') + '</div></div>' +
         '<p style="color:var(--ink-soft);font-size:.8rem;margin-top:8px">' + (saved ? t('savedReport') : t('parentReportNotSaved')) + '</p>' +
       '</div>'
     );
@@ -757,7 +757,7 @@
           '<div class="stat"><div class="n">' + num(total) + '</div><div class="l">' + t('totalDaysShort') + '</div></div>' +
         '</div>' +
         '<div class="section-title" style="margin-top:12px">' + t('educationalSituation') + '</div>' +
-        '<div class="meta">' + (saved && saved.comment ? esc(saved.comment) : 'â€”') + '</div>' +
+        '<div class="meta">' + (saved && saved.comment ? esc(saved.comment) : '—') + '</div>' +
         '<p style="color:var(--ink-soft);font-size:.8rem;margin-top:8px">' + (saved ? t('savedReport') : t('noMonthData')) + '</p>' +
       '</div>'
     );

@@ -42,3 +42,19 @@ begin
   return new;
 end;
 $$ language plpgsql security definer;
+
+-- 3) Parents need read access to class names (for the parent dashboard
+--    "Class: ..." label) and to their own child's student row.
+create policy "parent classes" on classes
+  for select using (auth.role() = 'authenticated' and exists (select 1 from profiles where id = auth.uid() and role = 'parent'));
+
+-- 4) Parents need read access to fee settings + payments for their own children.
+drop policy if exists "parent fee_settings" on fee_settings;
+create policy "parent fee_settings" on fee_settings for select using (
+  exists (select 1 from students s where s.id = fee_settings.student_id and s.parent_id = auth.uid())
+);
+
+drop policy if exists "parent fee_payments" on fee_payments;
+create policy "parent fee_payments" on fee_payments for select using (
+  exists (select 1 from students s where s.id = fee_payments.student_id and s.parent_id = auth.uid())
+);

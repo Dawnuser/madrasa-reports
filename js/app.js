@@ -479,48 +479,49 @@
     const fees = await DB.getAllFees();
     const now = new Date();
     const ym = ymOf(now.getFullYear(), now.getMonth() + 1);
-    const daysBack = 13;
-    const fromDs = DB.addDays(todayDs(), -daysBack);
+    const { q } = parseHash();
 
-    async function childBlock(st) {
-      const cls = classes[st.classId];
-      const reps = await DB.getParentReportRange(st.id, fromDs, todayDs());
-      const keys = Object.keys(reps).sort();
-      let present = 0, absent = 0;
-      keys.forEach(function (k) { if (reps[k].present) present++; else absent++; });
-      const fee = fees[st.id];
-      const cur = fee && fee.payments && fee.payments[ym] ? fee.payments[ym].paid : null;
-      const rows = keys.slice(-10).reverse().map(function (k) {
-        const r = reps[k];
-        return '<div class="rep-row">' +
-          '<span>' + fmtDate(k) + '</span>' +
-          '<span>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent')) + '</span>' +
-          (r.sabaqDone ? '<span class="badge badge-ok">' + t('sabaq') + ': ' + (r.pages || 0) + 'p' + (r.lines ? '+' + r.lines + 'l' : '') + '</span>' : '<span>—</span>') +
-          (r.sabqiDone ? '<span class="badge">' + t('sabqi') + '</span>' : '') +
-          (r.manzilDone ? '<span class="badge badge-ok">' + t('manzil') + '</span>' : '') +
-        '</div>';
-      }).join('');
-      return (
-        '<div class="card" style="margin-top:14px">' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
-            '<div>' +
-              '<div style="font-weight:700">' + nameDisplay(st.name) + '</div>' +
-              '<div class="meta">' + t('parentClass') + ': ' + nameDisplay(cls ? cls.name : '—') + ' · ' + t('para') + ' ' + num(st.para) + '</div>' +
-            '</div>' +
-            '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-              '<span class="badge badge-ok">' + t('parentPresentDays') + ': ' + num(present) + '</span>' +
-              '<span class="badge">' + t('parentAbsentDays') + ': ' + num(absent) + '</span>' +
-              (fee && fee.amount != null ?
-                '<span class="badge' + (cur === true ? ' badge-ok' : '') + '">' + t('parentFeeCurrent') + ': ' + (cur === null ? t('parentFeeNotSet') : cur ? t('parentFeePaid') : t('parentFeeUnpaid')) + '</span>' : '') +
-            '</div>' +
-          '</div>' +
-          (rows ? '<div style="margin-top:10px">' + rows + '</div>' : '<div class="meta" style="margin-top:10px">' + t('noReports') + '</div>') +
-        '</div>'
-      );
+    const VIEWS = ['overview', 'daily', 'weekly', 'monthly', 'attendance', 'fees'];
+
+    let cur = students[0] || null;
+    if (q && q.c) {
+      const hit = students.filter(function (s) { return s.id === q.c; })[0];
+      if (hit) cur = hit;
     }
+    const view = (q && VIEWS.indexOf(q.v) >= 0) ? q.v : 'overview';
 
-    const blocks = [];
-    for (const st of students) blocks.push(await childBlock(st));
+    const chips = students.map(function (st) {
+      const on = cur && st.id === cur.id;
+      return '<button class="p-chip' + (on ? ' on' : '') + '" data-action="p-child" data-id="' + st.id + '">' + nameDisplay(st.name) + '</button>';
+    }).join('');
+
+    const tabLabels = {};
+    tabLabels.overview = t('parentOverview');
+    tabLabels.daily = t('parentDaily');
+    tabLabels.weekly = t('parentWeekly');
+    tabLabels.monthly = t('parentMonthly');
+    tabLabels.attendance = t('parentAttendance');
+    tabLabels.fees = t('parentFees');
+    const tabBar = VIEWS.map(function (v) {
+      return '<button class="p-tab' + (v === view ? ' on' : '') + '" data-action="p-tab" data-view="' + v + '">' + tabLabels[v] + '</button>';
+    }).join('');
+
+    let content = '';
+    if (!cur) {
+      content = '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('parentNoStudents') + '</div>';
+    } else if (view === 'overview') {
+      content = await parentOverview(cur, classes, fees, ym);
+    } else if (view === 'daily') {
+      content = await parentDaily(cur, classes, q);
+    } else if (view === 'weekly') {
+      content = await parentWeekly(cur, classes, q);
+    } else if (view === 'monthly') {
+      content = await parentMonthly(cur, classes, q);
+    } else if (view === 'attendance') {
+      content = await parentAttendance(cur, q);
+    } else if (view === 'fees') {
+      content = await parentFees(cur, fees, q);
+    }
 
     app.innerHTML = '' +
       topbar(true) +
@@ -529,16 +530,336 @@
         '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(session.name) + '</h1>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="invite-more">+ ' + t('invite') + '</button>' +
-          '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
+          '<a class="btn btn-ghost btn-sm" href="#/password">ðŸ” ' + t('changePassword') + '</a>' +
           (DB.installable && typeof DB.installable === 'function' && DB.installable() ?
-            '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
+            '<button class="btn btn-ghost btn-sm" data-action="install-app">ðŸ“² ' + t('parentInstallApp') + '</button>' : '') +
         '</div>' +
-        (blocks.length === 0 ?
-          '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('parentNoStudents') + '</div>' : blocks.join('')) +
+        (students.length > 1 ? '<div class="p-chips">' + chips + '</div>' : '') +
+        '<div class="p-tabs">' + tabBar + '</div>' +
+        content +
       '</main>';
 
     viewActions['invite-more'] = function () { nav('invite'); };
     viewActions['install-app'] = function () { DB.installApp(); };
+    viewActions['p-child'] = function (btn) {
+      nav('parent?c=' + btn.getAttribute('data-id') + '&v=' + view);
+    };
+    viewActions['p-tab'] = function (btn) {
+      nav('parent?c=' + (cur ? cur.id : '') + '&v=' + btn.getAttribute('data-view'));
+    };
+    changeActions['p-month'] = function (el) {
+      nav('parent?c=' + (cur ? cur.id : '') + '&v=' + view + '&ym=' + el.value);
+    };
+    changeActions['p-week'] = function (el) {
+      nav('parent?c=' + (cur ? cur.id : '') + '&v=' + view + '&wk=' + el.value);
+    };
+  }
+
+  /* ---------- PARENT portal views ---------- */
+
+  function parentTrack(st, classes) {
+    return st.type || (classes[st.classId] && classes[st.classId].type) || 'hifz';
+  }
+
+  function parentManzilName(r, manzilIsTri) {
+    if (!r.present || !r.manzilDone) return 'â€”';
+    if (manzilIsTri) {
+      if (r.manzil === 'half') return I18N.t('halfPara');
+      if (r.manzil === 'third') return I18N.t('thirdPara');
+      if (r.manzil === 'full') return I18N.t('fullPara');
+      return 'â€”';
+    }
+    const parts = [];
+    if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
+    if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
+    return parts.join('+') || 'â€”';
+  }
+
+  function parentSabaqCell(r) {
+    if (!r.present) return 'â€”';
+    if (!r.sabaqDone) return I18N.t('notDone');
+    const parts = [];
+    if (r.pages) parts.push(num(r.pages) + 'p');
+    if (r.lines) parts.push(num(r.lines) + 'l');
+    return parts.join('+') || 'â€”';
+  }
+
+  async function parentOverview(st, classes, fees, ym) {
+    const t = I18N.t;
+    const cls = classes[st.classId];
+    const manzilIsTri = parentTrack(st, classes) === 'hifz';
+    const daysBack = 13;
+    const fromDs = DB.addDays(todayDs(), -daysBack);
+    const reps = await DB.getParentReportRange(st.id, fromDs, todayDs());
+    const keys = Object.keys(reps).sort();
+    let present = 0, absent = 0;
+    keys.forEach(function (k) { if (reps[k].present) present++; else absent++; });
+    const fee = fees[st.id];
+    const cur = fee && fee.payments && fee.payments[ym] ? fee.payments[ym].paid : null;
+
+    const rows = keys.slice(-10).reverse().map(function (k) {
+      const r = reps[k];
+      return '<tr class="' + (r.present ? '' : 'absent') + '">' +
+        '<td>' + fmtDate(k) + '</td>' +
+        '<td>' + (r.present ? 'âœ“ ' + t('present') : 'âœ— ' + t('absent')) + '</td>' +
+        '<td>' + parentSabaqCell(r) + '</td>' +
+        '<td>' + (r.present ? (r.sabqiDone ? 'âœ“' : 'â€”') : 'â€”') + '</td>' +
+        '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : 'â€”') + '</td>' +
+      '</tr>';
+    }).join('');
+
+    return (
+      '<div class="card p-card">' +
+        '<div class="p-card-top">' +
+          '<div>' +
+            '<div style="font-weight:800;font-size:1.05rem">' + nameDisplay(st.name) + '</div>' +
+            '<div class="meta">' + t('parentClass') + ': ' + nameDisplay(cls ? cls.name : 'â€”') + ' Â· ' + t('para') + ' ' + num(st.para) +
+              (st.currentPage ? ' Â· ' + t('page') + ' ' + num(st.currentPage) : '') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+            '<span class="badge badge-ok">' + t('parentPresentCount') + ': ' + num(present) + '</span>' +
+            '<span class="badge badge-miss">' + t('parentAbsentCount') + ': ' + num(absent) + '</span>' +
+            (fee && fee.amount != null ?
+              '<span class="badge' + (cur === true ? ' badge-ok' : cur === false ? ' badge-miss' : '') + '">' + t('parentFeeCurrent') + ': ' + (cur === null ? t('parentFeeNotSet') : cur ? t('parentFeePaid') : t('parentFeeUnpaid')) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="section-title" style="margin:12px 0 6px">' + t('parentRecentDays') + '</div>' +
+        (rows ? '<div class="tbl-wrap"><table class="tbl">' +
+          '<thead><tr><th>' + t('date') + '</th><th>' + t('status') + '</th><th>' + t('sabaq') + '</th><th>' + t('sabqi') + '</th><th>' + t('manzil') + '</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody></table></div>' :
+          '<div class="empty-note">' + t('noReports') + '</div>') +
+      '</div>'
+    );
+  }
+
+  async function parentDaily(st, classes, q) {
+    const t = I18N.t;
+    const manzilIsTri = parentTrack(st, classes) === 'hifz';
+    const now = new Date();
+    const months = feeMonths(6);
+    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
+    if (q && q.ym) {
+      const p = q.ym.split('-').map(Number);
+      sel = { y: p[0], m: p[1] };
+    }
+    const reps = await DB.getMonthReports(st.id, sel.y, sel.m);
+    const daysInMonth = new Date(sel.y, sel.m, 0).getDate();
+    const today = todayDs();
+    let presentCount = 0, absentCount = 0;
+    const rows = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = sel.y + '-' + String(sel.m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      if (ds > today) continue;
+      const r = reps[ds];
+      if (!r) continue;
+      if (r.present) presentCount++; else absentCount++;
+      rows.push({ ds: ds, r: r });
+    }
+
+    return (
+      '<div class="stat-row">' +
+        '<div class="stat"><div class="n">' + num(presentCount) + '</div><div class="l">' + t('presentCount') + '</div></div>' +
+        '<div class="stat"><div class="n">' + num(absentCount) + '</div><div class="l">' + t('absentDays') + '</div></div>' +
+        '<div class="stat"><div class="n">' + num(rows.length) + '</div><div class="l">' + t('totalDays') + '</div></div>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>' + t('month') + '</label>' +
+        '<select id="p-month" data-change="p-month">' +
+          months.map(function (mo) {
+            const mv = ymOf(mo.y, mo.m);
+            return '<option value="' + mv + '"' + (mv === ymOf(sel.y, sel.m) ? ' selected' : '') + '>' + monthLabel(mo.y, mo.m) + '</option>';
+          }).join('') +
+        '</select>' +
+      '</div>' +
+      (rows.length === 0 ?
+        '<div class="empty-note">' + t('noReports') + '</div>' :
+        '<div class="tbl-wrap"><table class="tbl">' +
+          '<thead><tr><th>' + t('day') + '</th><th>' + t('date') + '</th><th>' + t('status') + '</th><th>' + t('sabaq') + '</th><th>' + t('sabqi') + '</th><th>' + t('manzil') + '</th><th>' + t('comment') + '</th></tr></thead>' +
+          '<tbody>' + rows.map(function (row) {
+            const r = row.r;
+            return '<tr class="' + (r.present ? '' : 'absent') + '">' +
+              '<td class="num">' + num(parseInt(row.ds.slice(8), 10)) + '</td>' +
+              '<td>' + fmtDate(row.ds) + '</td>' +
+              '<td>' + (r.present ? 'âœ“ ' + t('present') : 'âœ— ' + t('absent')) + '</td>' +
+              '<td>' + parentSabaqCell(r) + '</td>' +
+              '<td>' + (r.present ? (r.sabqiDone ? 'âœ“' : 'â€”') : 'â€”') + '</td>' +
+              '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : 'â€”') + '</td>' +
+              '<td class="cmt">' + (r.comment ? esc(r.comment) : 'â€”') + '</td>' +
+            '</tr>';
+          }).join('') + '</tbody></table></div>')
+    );
+  }
+
+  async function parentWeekly(st, classes, q) {
+    const t = I18N.t;
+    const mondays = lastNMondays(6);
+    let wk = weekOfMonday(todayDs());
+    if (q && q.wk) wk = q.wk;
+    const auto = { newSafa: 0, sabaqDays: 0 };
+    const weekReps = await DB.getReportRange(st.id, wk, DB.addDays(wk, 6));
+    for (let i = 0; i < 7; i++) {
+      const ds = DB.addDays(wk, i);
+      const rep = weekReps[ds];
+      if (rep && rep.present && rep.sabaqDone) {
+        auto.newSafa += (rep.pages || 0);
+        auto.sabaqDays++;
+      }
+    }
+    const saved = await DB.getWeekly(st.id, wk);
+
+    return (
+      '<div class="field">' +
+        '<label>' + t('weekOf') + '</label>' +
+        '<select id="p-week" data-change="p-week">' +
+          mondays.map(function (m) {
+            return '<option value="' + m + '"' + (m === wk ? ' selected' : '') + '>' + weekLabel(m) + '</option>';
+          }).join('') +
+        '</select>' +
+      '</div>' +
+      '<div class="card p-card">' +
+        '<div class="p-card-top">' +
+          '<div style="font-weight:800">' + weekLabel(wk) + '</div>' +
+        '</div>' +
+        '<div class="stat-row">' +
+          '<div class="stat"><div class="n">' + num(saved && saved.newSafa != null ? saved.newSafa : auto.newSafa) + '</div><div class="l">' + t('newSafa') + '</div></div>' +
+          '<div class="stat"><div class="n">' + num(saved && saved.sabaqDays != null ? saved.sabaqDays : auto.sabaqDays) + '</div><div class="l">' + t('sabaqDays') + '</div></div>' +
+        '</div>' +
+        '<div class="field" style="margin-top:10px"><label>' + t('manzilComment') + '</label><div class="meta">' + (saved && saved.manzilComment ? esc(saved.manzilComment) : 'â€”') + '</div></div>' +
+        '<div class="field"><label>' + t('bigComment') + '</label><div class="meta">' + (saved && saved.bigComment ? esc(saved.bigComment) : 'â€”') + '</div></div>' +
+        '<p style="color:var(--ink-soft);font-size:.8rem;margin-top:8px">' + (saved ? t('savedReport') : t('parentReportNotSaved')) + '</p>' +
+      '</div>'
+    );
+  }
+
+  async function parentMonthly(st, classes, q) {
+    const t = I18N.t;
+    const now = new Date();
+    let ym = ymOf(now.getFullYear(), now.getMonth() + 1);
+    if (q && q.ym) ym = q.ym;
+    const p = ym.split('-').map(Number);
+    const reps = await DB.getMonthReports(st.id, p[0], p[1]);
+    let present = 0, absent = 0, total = 0;
+    Object.keys(reps).forEach(function (ds) {
+      const r = reps[ds];
+      if (r.present) present++; else absent++;
+      total++;
+    });
+    const saved = await DB.getMonthlyReport(st.id, ym);
+    const months = feeMonths(6);
+
+    return (
+      '<div class="field">' +
+        '<label>' + t('month') + '</label>' +
+        '<select id="p-month" data-change="p-month">' +
+          months.map(function (mo) {
+            const mv = ymOf(mo.y, mo.m);
+            return '<option value="' + mv + '"' + (mv === ym ? ' selected' : '') + '>' + monthLabel(mo.y, mo.m) + '</option>';
+          }).join('') +
+        '</select>' +
+      '</div>' +
+      '<div class="card p-card">' +
+        '<div class="section-title">' + t('attendanceSummary') + '</div>' +
+        '<div class="stat-row">' +
+          '<div class="stat"><div class="n">' + num(present) + '</div><div class="l">' + t('presentDaysShort') + '</div></div>' +
+          '<div class="stat"><div class="n">' + num(absent) + '</div><div class="l">' + t('absentDaysShort') + '</div></div>' +
+          '<div class="stat"><div class="n">' + num(total) + '</div><div class="l">' + t('totalDaysShort') + '</div></div>' +
+        '</div>' +
+        '<div class="section-title" style="margin-top:12px">' + t('educationalSituation') + '</div>' +
+        '<div class="meta">' + (saved && saved.comment ? esc(saved.comment) : 'â€”') + '</div>' +
+        '<p style="color:var(--ink-soft);font-size:.8rem;margin-top:8px">' + (saved ? t('savedReport') : t('noMonthData')) + '</p>' +
+      '</div>'
+    );
+  }
+
+  async function parentAttendance(st, q) {
+    const t = I18N.t;
+    const now = new Date();
+    const months = feeMonths(6);
+    let sel = { y: now.getFullYear(), m: now.getMonth() + 1 };
+    if (q && q.ym) {
+      const p = q.ym.split('-').map(Number);
+      sel = { y: p[0], m: p[1] };
+    }
+    const reps = await DB.getMonthReports(st.id, sel.y, sel.m);
+    const daysInMonth = new Date(sel.y, sel.m, 0).getDate();
+    const today = todayDs();
+    const firstDay = new Date(sel.y, sel.m - 1, 1).getDay();
+    const firstCol = (firstDay + 6) % 7;
+    let presentCount = 0, absentCount = 0, marked = 0;
+    const cells = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = sel.y + '-' + String(sel.m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      let state = null;
+      if (ds <= today) {
+        const r = reps[ds];
+        if (r) {
+          state = r.present ? 'p' : 'a';
+          if (r.present) presentCount++; else absentCount++;
+          marked++;
+        }
+      }
+      cells.push({ d: d, state: state, future: ds > today });
+    }
+    const grid = [];
+    for (let i = 0; i < firstCol; i++) grid.push('<span class="att-cell empty"></span>');
+    cells.forEach(function (c) {
+      const cls = c.future ? 'empty' : (c.state === 'p' ? 'ok' : c.state === 'a' ? 'bad' : 'none');
+      grid.push('<span class="att-cell ' + cls + '"><b>' + num(c.d) + '</b></span>');
+    });
+
+    return (
+      '<div class="stat-row">' +
+        '<div class="stat"><div class="n">' + num(presentCount) + '</div><div class="l">' + t('presentCount') + '</div></div>' +
+        '<div class="stat"><div class="n">' + num(absentCount) + '</div><div class="l">' + t('absentDays') + '</div></div>' +
+        '<div class="stat"><div class="n">' + num(marked) + '</div><div class="l">' + t('totalDays') + '</div></div>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>' + t('month') + '</label>' +
+        '<select id="p-month" data-change="p-month">' +
+          months.map(function (mo) {
+            const mv = ymOf(mo.y, mo.m);
+            return '<option value="' + mv + '"' + (mo.y === sel.y && mo.m === sel.m ? ' selected' : '') + '>' + monthLabel(mo.y, mo.m) + '</option>';
+          }).join('') +
+        '</select>' +
+      '</div>' +
+      '<div class="att-grid">' + grid.join('') + '</div>' +
+      '<div style="display:flex;gap:14px;margin-top:10px;font-size:.8rem;color:var(--ink-soft);flex-wrap:wrap">' +
+        '<span><span class="att-key ok"></span> ' + t('present') + '</span>' +
+        '<span><span class="att-key bad"></span> ' + t('absent') + '</span>' +
+        '<span><span class="att-key none"></span> ' + t('noMark') + '</span>' +
+      '</div>'
+    );
+  }
+
+  async function parentFees(st, fees, q) {
+    const t = I18N.t;
+    const fee = fees[st.id];
+    const months = feeMonths(6);
+    const now = new Date();
+    const curYm = ymOf(now.getFullYear(), now.getMonth() + 1);
+
+    const rows = months.map(function (mo) {
+      const mv = ymOf(mo.y, mo.m);
+      const pay = fee && fee.payments && fee.payments[mv] ? fee.payments[mv] : null;
+      const isCur = mv === curYm;
+      return '<tr' + (isCur ? ' class="cur"' : '') + '>' +
+        '<td>' + monthLabel(mo.y, mo.m) + (isCur ? ' <span class="badge badge-pending">' + t('parentFeeCurrent') + '</span>' : '') + '</td>' +
+        '<td>' + (fee && fee.amount != null ? num(fee.amount) : 'â€”') + '</td>' +
+        '<td>' + (pay ? (pay.paid ? '<span class="badge badge-ok">' + t('parentFeePaid') + '</span>' : '<span class="badge badge-miss">' + t('parentFeeUnpaid') + '</span>') : '<span class="badge">' + t('parentFeeNotSet') + '</span>') + '</td>' +
+      '</tr>';
+    }).join('');
+
+    return (
+      '<div class="card p-card">' +
+        '<div class="section-title">' + t('parentFeeHistory') + '</div>' +
+        (fee && fee.amount != null ?
+          '<div class="meta" style="margin:8px 0">' + t('parentFeeAmount') + ': <b>' + num(fee.amount) + '</b></div>' : '') +
+        (rows ? '<div class="tbl-wrap"><table class="tbl">' +
+          '<thead><tr><th>' + t('month') + '</th><th>' + t('parentFeeAmount') + '</th><th>' + t('status') + '</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody></table></div>' :
+          '<div class="empty-note">' + t('parentNoFees') + '</div>') +
+      '</div>'
+    );
   }
 
   /* ---------- DASHBOARD (qari) ---------- */

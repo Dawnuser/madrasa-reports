@@ -993,6 +993,15 @@ trash: 'Archive',
       inviteAccountSub: 'Create a parent account so you can view reports.',
       inviteLinked: 'Account linked. Welcome!',
       inviteCopied: 'Invite code copied.',
+      signupTitle: 'Parent Sign Up',
+      signupSub: 'Enter the invite code you received, confirm your child, then create your account.',
+      signupHaveAccount: 'Already have an account? Log in',
+      parentNamePlaceholder: 'e.g. Muhammad Ahmed',
+      parentEmail: 'Email (must end with @madrasa.com)',
+      parentEmailHint: 'Your email must end with @madrasa.com',
+      parentEmailBad: 'Email must end with @madrasa.com.',
+      nameRequired: 'Please enter your name.',
+      emailRequired: 'Please enter your email.',
       parentPortal: 'Parent Portal',
       parentSub: 'Your children\'s reports',
       parentStudent: 'Child',
@@ -1244,6 +1253,15 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       inviteAccountSub: 'ایک والدین اکاؤنٹ بنائیں تاکہ رپورٹس دیکھ سکیں۔',
       inviteLinked: 'اکاؤنٹ منسلک ہو گیا۔ خوش آمدید!',
       inviteCopied: 'انوائٹ کوڈ کاپی ہو گیا۔',
+      signupTitle: 'والدین کا اندراج',
+      signupSub: 'انوائٹ کوڈ درج کریں، اپنے بچے کی تصدیق کریں، پھر اکاؤنٹ بنائیں۔',
+      signupHaveAccount: 'پہلے سے اکاؤنٹ ہے؟ لاگ اِن کریں',
+      parentNamePlaceholder: 'مثلاً محمد احمد',
+      parentEmail: 'ای میل (مکمل @madrasa.com پر ہونی چاہیے)',
+      parentEmailHint: 'آپ کی ای میل @madrasa.com پر ختم ہونی چاہیے',
+      parentEmailBad: 'ای میل @madrasa.com پر ختم ہونی چاہیے۔',
+      nameRequired: 'براہ کرم اپنا نام درج کریں۔',
+      emailRequired: 'براہ کرم اپنی ای میل درج کریں۔',
       parentPortal: 'والدین کا پورٹل',
       parentSub: 'آپ کے بچوں کی رپورٹس',
       parentStudent: 'بچہ',
@@ -1495,6 +1513,15 @@ trash: 'الأرشيف',
       inviteAccountSub: 'أنشئ حساب ولي أمر لعرض التقارير.',
       inviteLinked: 'تم ربط الحساب. أهلاً بك!',
       inviteCopied: 'تم نسخ رمز الدعوة.',
+      signupTitle: 'تسجيل ولي الأمر',
+      signupSub: 'أدخل رمز الدعوة، تأكد من اسم طفلك، ثم أنشئ حسابك.',
+      signupHaveAccount: 'لديك حساب بالفعل؟ سجّل الدخول',
+      parentNamePlaceholder: 'مثال: محمد أحمد',
+      parentEmail: 'البريد الإلكتروني (يجب أن ينتهي بـ @madrasa.com)',
+      parentEmailHint: 'يجب أن ينتهي بريدك بـ @madrasa.com',
+      parentEmailBad: 'يجب أن ينتهي البريد بـ @madrasa.com.',
+      nameRequired: 'الرجاء إدخال اسمك.',
+      emailRequired: 'الرجاء إدخال بريدك الإلكتروني.',
       parentPortal: 'بوابة أولياء الأمور',
       parentSub: 'تقارير أطفالك',
       parentStudent: 'الطفل',
@@ -1897,6 +1924,36 @@ const DB = (function () {
       const c = client();
       const { data, error } = await c.rpc('claim_invite', { code: String(code || '').trim().toUpperCase() });
       return error ? { ok: false } : { ok: !!data };
+    },
+    /* self-signup: create a parent account, auto-confirm, claim the invite, and log in */
+    async signupParent(code, name, email, password) {
+      const c = client();
+      const normEmail = String(email || '').trim().toLowerCase();
+      if (!/^[^@\s]+@madrasa\.com$/i.test(normEmail)) return { ok: false, error: 'bad_email' };
+      const stu = await api.lookupInvite(code);
+      if (!stu) return { ok: false, error: 'invalid_code' };
+      const { data, error } = await c.auth.signUp({
+        email: normEmail,
+        password: password,
+        options: { data: { name: String(name || '').trim(), role: 'parent' } }
+      });
+      if (error || !data.user) return { ok: false, error: (error && error.message) || 'signup_failed' };
+      let session = data.session;
+      if (!session) {
+        const s = await c.auth.signInWithPassword({ email: normEmail, password: password });
+        if (!s.error && s.data && s.data.session) session = s.data.session;
+      }
+      const claim = await api.claimInvite(code);
+      if (!claim.ok) return { ok: false, error: 'claim_failed' };
+      const prof = await api.getProfile(data.user.id);
+      const s = {
+        id: data.user.id,
+        name: (prof && prof.name) || name || normEmail.split('@')[0],
+        role: 'parent',
+        classId: null
+      };
+      persistSession(s);
+      return { ok: true, session: s };
     },
     async getParentStudents() {
       const c = client();
@@ -2451,10 +2508,13 @@ const DB = (function () {
       else renderLogin();
       return;
     }
-    if (!session) { redirect('login'); return; }
+    if (!session) {
+      if (seg[0] === 'signup') { renderSignup(); return; }
+      redirect('login'); return;
+    }
 
     /* parents only see their own portal */
-    if (session.role === 'parent' && seg[0] !== 'parent' && seg[0] !== 'invite') {
+    if (session.role === 'parent' && seg[0] !== 'parent' && seg[0] !== 'invite' && seg[0] !== 'signup') {
       redirect('parent');
       return;
     }
@@ -2529,7 +2589,7 @@ const DB = (function () {
           '<button type="submit" class="btn btn-primary btn-block">' + t('login') + '</button>' +
         '</form>' +
         '<div style="margin-top:10px;text-align:center">' +
-          '<a href="#/parent" style="font-size:.85rem;color:var(--gold)">👨‍👩‍👧 ' + t('invite') + '</a>' +
+          '<a href="#/signup" style="font-size:.85rem;color:var(--gold)">👨‍👩‍👧 ' + t('signupTitle') + '</a>' +
         '</div>' +
         '<div class="login-foot">' + t('sampleOnly') + '</div>' +
       '</div>';
@@ -2627,6 +2687,89 @@ const DB = (function () {
       viewActions['iv-claim'] = async function () {
         const res = await DB.claimInvite(code);
         if (!res.ok) { toast(t('saveFailed')); return; }
+        toast(t('inviteLinked'));
+        nav('parent');
+      };
+    };
+  }
+
+  /* ---------- PARENT SELF-SIGNUP (guest-accessible) ---------- */
+  async function renderSignup() {
+    applyLangTheme();
+    const t = I18N.t;
+    app.innerHTML = '' +
+      '<div class="login-wrap">' +
+        '<div style="position:fixed;top:14px;inset-inline-end:14px;display:flex;gap:8px">' +
+          '<button class="icon-btn" data-action="toggle-lang">' + nextLangLabel() + '</button>' +
+          '<button class="icon-btn" data-action="toggle-theme">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '☾') + '</button>' +
+        '</div>' +
+        '<div class="plaque"><img src="' + __LOGO__ + '" alt="' + esc(t('appName')) + '"></div>' +
+        '<div class="login-title">' +
+          '<span class="urdu">' + t('urduName') + '</span>' +
+          '<div class="h-display" style="margin-top:4px">' + esc(t('signupTitle')) + '</div>' +
+          '<div class="tag">' + esc(t('signupSub')) + '</div>' +
+        '</div>' +
+        '<div class="card login-card">' +
+          '<div class="field">' +
+            '<label for="su-code">' + t('inviteCode') + '</label>' +
+            '<input id="su-code" placeholder="' + t('inviteCodePlaceholder') + '" style="text-transform:uppercase">' +
+          '</div>' +
+          '<button class="btn btn-primary btn-block" data-action="su-lookup">' + t('inviteLookup') + '</button>' +
+        '</div>' +
+        '<div id="su-result"></div>' +
+        '<div style="margin-top:10px;text-align:center">' +
+          '<a href="#/login" style="font-size:.85rem;color:var(--gold)">' + t('signupHaveAccount') + '</a>' +
+        '</div>' +
+      '</div>';
+
+    viewActions['su-lookup'] = async function () {
+      const code = document.getElementById('su-code').value.trim().toUpperCase();
+      if (!code) return;
+      const stu = await DB.lookupInvite(code);
+      const box = document.getElementById('su-result');
+      if (!stu) {
+        box.innerHTML = '<div class="card" style="margin-top:14px;border-color:var(--bad)">' + t('inviteNotFound') + '</div>';
+        return;
+      }
+      box.innerHTML =
+        '<div class="card" style="margin-top:14px">' +
+          '<div class="section-title">' + t('inviteConfirmTitle') + '</div>' +
+          '<div class="student-row" style="padding:12px"><div>' +
+            '<div style="font-weight:600">' + nameDisplay(stu.name) + '</div>' +
+          '</div></div>' +
+          '<div class="field">' +
+            '<label for="su-name">' + t('parentName') + '</label>' +
+            '<input id="su-name" autocomplete="name" placeholder="' + esc(t('parentNamePlaceholder')) + '">' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="su-email">' + t('parentEmail') + '</label>' +
+            '<input id="su-email" type="email" autocomplete="email" placeholder="you@madrasa.com">' +
+            '<div style="font-size:.78rem;color:var(--ink-soft);margin-top:4px">' + t('parentEmailHint') + '</div>' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="su-pwd">' + t('password') + '</label>' +
+            '<input id="su-pwd" type="password" autocomplete="new-password">' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="su-pwd2">' + t('confirmPassword') + '</label>' +
+            '<input id="su-pwd2" type="password" autocomplete="new-password">' +
+          '</div>' +
+          '<button class="btn btn-primary btn-block" data-action="su-create" style="margin-top:4px">' + t('inviteCreateAccount') + '</button>' +
+        '</div>';
+      viewActions['su-create'] = async function () {
+        const name = document.getElementById('su-name').value.trim();
+        const email = document.getElementById('su-email').value.trim();
+        const pwd = document.getElementById('su-pwd').value;
+        const pwd2 = document.getElementById('su-pwd2').value;
+        if (!name) { toast(t('nameRequired')); return; }
+        if (!email) { toast(t('emailRequired')); return; }
+        if (pwd.length < 6) { toast(t('passwordShort')); return; }
+        if (pwd !== pwd2) { toast(t('passwordMismatch')); return; }
+        const res = await DB.signupParent(code, name, email, pwd);
+        if (!res.ok) {
+          toast(res.error === 'bad_email' ? t('parentEmailBad') : res.error === 'invalid_code' ? t('inviteNotFound') : t('saveFailed'));
+          return;
+        }
         toast(t('inviteLinked'));
         nav('parent');
       };

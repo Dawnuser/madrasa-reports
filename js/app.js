@@ -476,12 +476,11 @@
     const t = I18N.t;
     const students = await DB.getParentStudents();
     const classes = await DB.getParentClasses();
-    const fees = await DB.getAllFees();
     const now = new Date();
     const ym = ymOf(now.getFullYear(), now.getMonth() + 1);
     const { q } = parseHash();
 
-    const VIEWS = ['overview', 'daily', 'weekly', 'monthly', 'attendance', 'fees'];
+    const VIEWS = ['overview', 'daily', 'weekly', 'monthly', 'attendance'];
 
     let cur = students[0] || null;
     if (q && q.c) {
@@ -501,7 +500,6 @@
     tabLabels.weekly = t('parentWeekly');
     tabLabels.monthly = t('parentMonthly');
     tabLabels.attendance = t('parentAttendance');
-    tabLabels.fees = t('parentFees');
     const tabBar = VIEWS.map(function (v) {
       return '<button class="p-tab' + (v === view ? ' on' : '') + '" data-action="p-tab" data-view="' + v + '">' + tabLabels[v] + '</button>';
     }).join('');
@@ -509,8 +507,8 @@
     let content = '';
     if (!cur) {
       content = '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('parentNoStudents') + '</div>';
-    } else if (view === 'overview') {
-      content = await parentOverview(cur, classes, fees, ym);
+} else if (view === 'overview') {
+      content = await parentOverview(cur, classes);
     } else if (view === 'daily') {
       content = await parentDaily(cur, classes, q);
     } else if (view === 'weekly') {
@@ -519,8 +517,6 @@
       content = await parentMonthly(cur, classes, q);
     } else if (view === 'attendance') {
       content = await parentAttendance(cur, q);
-    } else if (view === 'fees') {
-      content = await parentFees(cur, fees, q);
     }
 
     app.innerHTML = '' +
@@ -584,7 +580,7 @@
     return parts.join('+') || 'â€”';
   }
 
-  async function parentOverview(st, classes, fees, ym) {
+  async function parentOverview(st, classes) {
     const t = I18N.t;
     const cls = classes[st.classId];
     const manzilIsTri = parentTrack(st, classes) === 'hifz';
@@ -594,8 +590,6 @@
     const keys = Object.keys(reps).sort();
     let present = 0, absent = 0;
     keys.forEach(function (k) { if (reps[k].present) present++; else absent++; });
-    const fee = fees[st.id];
-    const cur = fee && fee.payments && fee.payments[ym] ? fee.payments[ym].paid : null;
 
     const rows = keys.slice(-10).reverse().map(function (k) {
       const r = reps[k];
@@ -617,10 +611,8 @@
               (st.currentPage ? ' Â· ' + t('page') + ' ' + num(st.currentPage) : '') + '</div>' +
           '</div>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-            '<span class="badge badge-ok">' + t('parentPresentCount') + ': ' + num(present) + '</span>' +
+'<span class="badge badge-ok">' + t('parentPresentCount') + ': ' + num(present) + '</span>' +
             '<span class="badge badge-miss">' + t('parentAbsentCount') + ': ' + num(absent) + '</span>' +
-            (fee && fee.amount != null ?
-              '<span class="badge' + (cur === true ? ' badge-ok' : cur === false ? ' badge-miss' : '') + '">' + t('parentFeeCurrent') + ': ' + (cur === null ? t('parentFeeNotSet') : cur ? t('parentFeePaid') : t('parentFeeUnpaid')) + '</span>' : '') +
           '</div>' +
         '</div>' +
         '<div class="section-title" style="margin:12px 0 6px">' + t('parentRecentDays') + '</div>' +
@@ -827,37 +819,6 @@
         '<span><span class="att-key ok"></span> ' + t('present') + '</span>' +
         '<span><span class="att-key bad"></span> ' + t('absent') + '</span>' +
         '<span><span class="att-key none"></span> ' + t('noMark') + '</span>' +
-      '</div>'
-    );
-  }
-
-  async function parentFees(st, fees, q) {
-    const t = I18N.t;
-    const fee = fees[st.id];
-    const months = feeMonths(6);
-    const now = new Date();
-    const curYm = ymOf(now.getFullYear(), now.getMonth() + 1);
-
-    const rows = months.map(function (mo) {
-      const mv = ymOf(mo.y, mo.m);
-      const pay = fee && fee.payments && fee.payments[mv] ? fee.payments[mv] : null;
-      const isCur = mv === curYm;
-      return '<tr' + (isCur ? ' class="cur"' : '') + '>' +
-        '<td>' + monthLabel(mo.y, mo.m) + (isCur ? ' <span class="badge badge-pending">' + t('parentFeeCurrent') + '</span>' : '') + '</td>' +
-        '<td>' + (fee && fee.amount != null ? num(fee.amount) : 'â€”') + '</td>' +
-        '<td>' + (pay ? (pay.paid ? '<span class="badge badge-ok">' + t('parentFeePaid') + '</span>' : '<span class="badge badge-miss">' + t('parentFeeUnpaid') + '</span>') : '<span class="badge">' + t('parentFeeNotSet') + '</span>') + '</td>' +
-      '</tr>';
-    }).join('');
-
-    return (
-      '<div class="card p-card">' +
-        '<div class="section-title">' + t('parentFeeHistory') + '</div>' +
-        (fee && fee.amount != null ?
-          '<div class="meta" style="margin:8px 0">' + t('parentFeeAmount') + ': <b>' + num(fee.amount) + '</b></div>' : '') +
-        (rows ? '<div class="tbl-wrap"><table class="tbl">' +
-          '<thead><tr><th>' + t('month') + '</th><th>' + t('parentFeeAmount') + '</th><th>' + t('status') + '</th></tr></thead>' +
-          '<tbody>' + rows + '</tbody></table></div>' :
-          '<div class="empty-note">' + t('parentNoFees') + '</div>') +
       '</div>'
     );
   }

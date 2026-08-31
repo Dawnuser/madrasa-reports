@@ -2397,10 +2397,14 @@ const DB = (function () {
     installApp: async function () {
       const p = api.deferredInstallPrompt;
       if (!p) return false;
-      p.prompt();
-      const choice = await p.userChoice;
-      api.deferredInstallPrompt = null;
-      return choice && choice.outcome === 'accepted';
+      try {
+        p.prompt();
+        const choice = await p.userChoice;
+        api.deferredInstallPrompt = null;
+        return !!(choice && choice.outcome === 'accepted');
+      } catch (e) {
+        return false;
+      }
     },
     registerPush: async function () {
       try {
@@ -2591,9 +2595,7 @@ const DB = (function () {
     } else if (a === 'go-password') {
       nav('password');
     } else if (a === 'install-app') {
-      const hint = DB.installHint();
-      if (hint === 'native') DB.installApp();
-      else showInstallHelp(hint);
+      handleInstallClick();
     }
   });
 
@@ -2965,9 +2967,7 @@ const DB = (function () {
 
     viewActions['invite-more'] = function () { nav('invite'); };
     viewActions['install-app'] = function () {
-      const hint = DB.installHint();
-      if (hint === 'native') DB.installApp();
-      else showInstallHelp(hint);
+      handleInstallClick();
     };
     viewActions['p-child'] = function (btn) {
       nav('parent?c=' + btn.getAttribute('data-id') + '&v=' + view);
@@ -4456,6 +4456,16 @@ const DB = (function () {
       const a = e.target.closest('[data-action]');
       if ((a && a.getAttribute('data-action') === 'install-close') || e.target === b) b.remove();
     });
+  }
+
+  async function handleInstallClick() {
+    const hint = DB.installHint();
+    if (hint === 'native') {
+      const ok = await DB.installApp();
+      if (!ok) showInstallHelp(DB.installHint());
+    } else {
+      showInstallHelp(hint);
+    }
   }
 
   /* ---------- ATTENDANCE — per student, monthly grid ---------- */

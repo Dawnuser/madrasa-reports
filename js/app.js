@@ -168,9 +168,7 @@
     } else if (a === 'go-password') {
       nav('password');
     } else if (a === 'install-app') {
-      const hint = DB.installHint();
-      if (hint === 'native') DB.installApp();
-      else showInstallHelp(hint);
+      handleInstallClick();
     }
   });
 
@@ -542,9 +540,7 @@
 
     viewActions['invite-more'] = function () { nav('invite'); };
     viewActions['install-app'] = function () {
-      const hint = DB.installHint();
-      if (hint === 'native') DB.installApp();
-      else showInstallHelp(hint);
+      handleInstallClick();
     };
     viewActions['p-child'] = function (btn) {
       nav('parent?c=' + btn.getAttribute('data-id') + '&v=' + view);
@@ -2033,6 +2029,16 @@
       const a = e.target.closest('[data-action]');
       if ((a && a.getAttribute('data-action') === 'install-close') || e.target === b) b.remove();
     });
+  }
+
+  async function handleInstallClick() {
+    const hint = DB.installHint();
+    if (hint === 'native') {
+      const ok = await DB.installApp();
+      if (!ok) showInstallHelp(DB.installHint());
+    } else {
+      showInstallHelp(hint);
+    }
   }
 
   /* ---------- ATTENDANCE — per student, monthly grid ---------- */

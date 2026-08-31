@@ -707,10 +707,14 @@ const DB = (function () {
     installApp: async function () {
       const p = api.deferredInstallPrompt;
       if (!p) return false;
-      p.prompt();
-      const choice = await p.userChoice;
-      api.deferredInstallPrompt = null;
-      return choice && choice.outcome === 'accepted';
+      try {
+        p.prompt();
+        const choice = await p.userChoice;
+        api.deferredInstallPrompt = null;
+        return !!(choice && choice.outcome === 'accepted');
+      } catch (e) {
+        return false;
+      }
     },
     registerPush: async function () {
       try {

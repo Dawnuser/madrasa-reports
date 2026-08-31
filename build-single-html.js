@@ -1,17 +1,30 @@
 const fs = require('fs');
 const path = require('path');
 
+function readOrDie(p) {
+  try { return fs.readFileSync(p, 'utf8'); } catch (e) {
+    console.error('ERROR: Cannot read ' + p + ' — ' + e.message);
+    process.exit(1);
+  }
+}
+function readBinOrDie(p) {
+  try { return fs.readFileSync(p); } catch (e) {
+    console.error('ERROR: Cannot read ' + p + ' — ' + e.message);
+    process.exit(1);
+  }
+}
+
 const ROOT = __dirname;
-const css = fs.readFileSync(path.join(ROOT, 'css', 'style.css'), 'utf8');
-const i18n = fs.readFileSync(path.join(ROOT, 'js', 'i18n.js'), 'utf8');
-const data = fs.readFileSync(path.join(ROOT, 'js', 'data.js'), 'utf8');
-let app = fs.readFileSync(path.join(ROOT, 'js', 'app.js'), 'utf8');
-const logoB64 = fs.readFileSync(path.join(ROOT, 'assets', 'logo.png')).toString('base64');
+const css = readOrDie(path.join(ROOT, 'css', 'style.css'));
+const i18n = readOrDie(path.join(ROOT, 'js', 'i18n.js'));
+const data = readOrDie(path.join(ROOT, 'js', 'data.js'));
+let app = readOrDie(path.join(ROOT, 'js', 'app.js'));
+const logoB64 = readBinOrDie(path.join(ROOT, 'assets', 'logo.png')).toString('base64');
 
 // Rewrite img src refs to use the embedded logo (splices inside single-quoted JS strings)
 app = app.replace(/assets\/logo\.png/g, "' + __LOGO__ + '");
 
-const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const indexHtml = readOrDie(path.join(ROOT, 'index.html'));
 const title = (indexHtml.match(/<title>([^<]+)<\/title>/) || [])[1] || 'Madrasa Reports';
 
 const html = `<!DOCTYPE html>

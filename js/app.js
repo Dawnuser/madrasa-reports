@@ -541,7 +541,11 @@
       '</main>';
 
     viewActions['invite-more'] = function () { nav('invite'); };
-    viewActions['install-app'] = function () { DB.installApp(); };
+    viewActions['install-app'] = function () {
+      const hint = DB.installHint();
+      if (hint === 'native') DB.installApp();
+      else showInstallHelp(hint);
+    };
     viewActions['p-child'] = function (btn) {
       nav('parent?c=' + btn.getAttribute('data-id') + '&v=' + view);
     };

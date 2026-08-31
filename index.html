@@ -1085,6 +1085,10 @@ trash: 'Archive',
       parentAbsentDays: 'Absent',
       parentNoStudents: 'No children linked to this account yet.',
       parentInstallApp: 'Install App',
+      installHelpTitle: 'Install the App',
+      installHelpIOS: 'Tap the Share button (the square with an arrow), then choose "Add to Home Screen".',
+      installHelpAndroid: 'Open the browser menu (⋮) and tap "Add to Home Screen" or "Install app".',
+      installHelpNote: 'The app also works fully in the browser — no install needed.',
       parentOverview: 'Overview',
       parentDaily: 'Daily',
       parentAttendance: 'Attendance',
@@ -1355,6 +1359,10 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       parentAbsentDays: 'غیر حاضر',
       parentNoStudents: 'ابھی اس اکاؤنٹ سے کوئی بچہ منسلک نہیں۔',
       parentInstallApp: 'ایپ انسٹال کریں',
+      installHelpTitle: 'ایپ انسٹال کریں',
+      installHelpIOS: 'شیئر بٹن (مربع جس میں تیر ہے) دبائیں، پھر "Add to Home Screen" منتخب کریں۔',
+      installHelpAndroid: 'براؤزر مینیو (⋮) کھولیں اور "Add to Home Screen" یا "Install app" دبائیں۔',
+      installHelpNote: 'ایپ براؤزر میں بھی مکمل چلتی ہے — انسٹال ضروری نہیں۔',
       parentOverview: 'جائزہ',
       parentDaily: 'روزانہ',
       parentAttendance: 'حاضری',
@@ -1625,6 +1633,10 @@ trash: 'الأرشيف',
       parentAbsentDays: 'غائب',
       parentNoStudents: 'لا يوجد أطفال مرتبطون بهذا الحساب بعد.',
       parentInstallApp: 'تثبيت التطبيق',
+      installHelpTitle: 'تثبيت التطبيق',
+      installHelpIOS: 'اضغط زر المشاركة (المربع مع السهم)، ثم اختر "Add to Home Screen".',
+      installHelpAndroid: 'افتح قائمة المتصفح (⋮) واضغط "Add to Home Screen" أو "Install app".',
+      installHelpNote: 'التطبيق يعمل بالكامل من المتصفح أيضًا — لا حاجة للتثبيت.',
       parentOverview: 'نظرة عامة',
       parentDaily: 'يومي',
       parentAttendance: 'الحضور',
@@ -2372,6 +2384,12 @@ const DB = (function () {
     installable: function () {
       return !!this.deferredInstallPrompt;
     },
+    installHint: function () {
+      if (this.installable()) return 'native';
+      const ua = navigator.userAgent || '';
+      const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      return isIOS ? 'ios' : 'browser';
+    },
     captureInstallPrompt: function (e) {
       e.preventDefault();
       api.deferredInstallPrompt = e;
@@ -2573,7 +2591,9 @@ const DB = (function () {
     } else if (a === 'go-password') {
       nav('password');
     } else if (a === 'install-app') {
-      DB.installApp();
+      const hint = DB.installHint();
+      if (hint === 'native') DB.installApp();
+      else showInstallHelp(hint);
     }
   });
 
@@ -2669,6 +2689,7 @@ const DB = (function () {
     app.innerHTML = '' +
       '<div class="login-wrap">' +
         '<div style="position:fixed;top:14px;inset-inline-end:14px;display:flex;gap:8px">' +
+          (DB.installHint ? '<button class="icon-btn" data-action="install-app" title="' + esc(t('parentInstallApp')) + '">📲</button>' : '') +
           '<button class="icon-btn" data-action="toggle-lang">' + nextLangLabel() + '</button>' +
           '<button class="icon-btn" data-action="toggle-theme">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '☾') + '</button>' +
         '</div>' +
@@ -2801,6 +2822,7 @@ const DB = (function () {
     app.innerHTML = '' +
       '<div class="login-wrap">' +
         '<div style="position:fixed;top:14px;inset-inline-end:14px;display:flex;gap:8px">' +
+          (DB.installHint ? '<button class="icon-btn" data-action="install-app" title="' + esc(t('parentInstallApp')) + '">📲</button>' : '') +
           '<button class="icon-btn" data-action="toggle-lang">' + nextLangLabel() + '</button>' +
           '<button class="icon-btn" data-action="toggle-theme">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '☾') + '</button>' +
         '</div>' +
@@ -2933,7 +2955,7 @@ const DB = (function () {
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="invite-more">+ ' + t('invite') + '</button>' +
           '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
-          (DB.installable && typeof DB.installable === 'function' && DB.installable() ?
+          (DB.installHint ?
             '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
         '</div>' +
         (students.length > 1 ? '<div class="p-chips">' + chips + '</div>' : '') +
@@ -4406,6 +4428,32 @@ const DB = (function () {
     });
   }
 
+  function showInstallHelp(hint) {
+    const t = I18N.t;
+    const b = document.createElement('div');
+    b.className = 'modal-back';
+    var steps;
+    if (hint === 'ios') {
+      steps = t('installHelpIOS');
+    } else {
+      steps = t('installHelpAndroid');
+    }
+    b.innerHTML =
+      '<div class="modal">' +
+        '<h3>📲 ' + t('installHelpTitle') + '</h3>' +
+        '<p style="margin-bottom:12px;line-height:1.7">' + esc(steps) + '</p>' +
+        '<p style="color:var(--ink-soft);font-size:.85rem">' + esc(t('installHelpNote')) + '</p>' +
+        '<div style="display:flex;justify-content:flex-end;margin-top:16px">' +
+          '<button class="btn btn-ghost" data-action="install-close">' + t('close') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(b);
+    b.addEventListener('click', function (e) {
+      const a = e.target.closest('[data-action]');
+      if ((a && a.getAttribute('data-action') === 'install-close') || e.target === b) b.remove();
+    });
+  }
+
   /* ---------- ATTENDANCE — per student, monthly grid ---------- */
   async function renderAttendance(session, sid) {
     const t = I18N.t;
@@ -5390,8 +5438,7 @@ const DB = (function () {
           '<span class="t1">' + esc(I18N.t('appName')) + '</span>' +
         '</div>' +
         '<div class="spacer"></div>' +
-        (DB.installable && typeof DB.installable === 'function' && DB.installable() ?
-          '<button class="icon-btn" data-action="install-app" title="' + esc(I18N.t('parentInstallApp')) + '">📲</button>' : '') +
+        (DB.installHint ? '<button class="icon-btn" data-action="install-app" title="' + esc(I18N.t('parentInstallApp')) + '">📲</button>' : '') +
         '<button class="icon-btn" data-action="go-password" title="' + esc(I18N.t('changePassword')) + '">🔐</button>' +
         '<button class="icon-btn" data-action="toggle-lang" title="Language">' +
           esc(nextLangLabel()) +

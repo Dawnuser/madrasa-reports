@@ -694,6 +694,12 @@ const DB = (function () {
     installable: function () {
       return !!this.deferredInstallPrompt;
     },
+    installHint: function () {
+      if (this.installable()) return 'native';
+      const ua = navigator.userAgent || '';
+      const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      return isIOS ? 'ios' : 'browser';
+    },
     captureInstallPrompt: function (e) {
       e.preventDefault();
       api.deferredInstallPrompt = e;

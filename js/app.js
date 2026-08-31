@@ -1395,6 +1395,10 @@
           '</div>' +
         '</div>';
       document.body.appendChild(b);
+      applyTrackUi();
+      b.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'm-track') applyTrackUi();
+      });
       b.addEventListener('click', function (e) {
         const a = e.target.closest('[data-action]');
         if (!a) return;
@@ -1722,10 +1726,6 @@
         '</div>' +
       '</div>';
       document.body.appendChild(b);
-      applyTrackUi();
-      b.addEventListener('change', function (e) {
-        if (e.target && e.target.id === 'm-track') applyTrackUi();
-      });
       b.addEventListener('click', function (e) {
       const a = e.target.closest('[data-action]');
       if ((a && a.getAttribute('data-action') === 'm-fh-close') || e.target === b) b.remove();

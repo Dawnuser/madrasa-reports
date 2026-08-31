@@ -347,6 +347,36 @@ const DB = (function () {
       const { data, error } = await c.rpc('claim_invite', { code: String(code || '').trim().toUpperCase() });
       return error ? { ok: false } : { ok: !!data };
     },
+    /* self-signup: create a parent account, auto-confirm, claim the invite, and log in */
+    async signupParent(code, name, email, password) {
+      const c = client();
+      const normEmail = String(email || '').trim().toLowerCase();
+      if (!/^[^@\s]+@madrasa\.com$/i.test(normEmail)) return { ok: false, error: 'bad_email' };
+      const stu = await api.lookupInvite(code);
+      if (!stu) return { ok: false, error: 'invalid_code' };
+      const { data, error } = await c.auth.signUp({
+        email: normEmail,
+        password: password,
+        options: { data: { name: String(name || '').trim(), role: 'parent' } }
+      });
+      if (error || !data.user) return { ok: false, error: (error && error.message) || 'signup_failed' };
+      let session = data.session;
+      if (!session) {
+        const s = await c.auth.signInWithPassword({ email: normEmail, password: password });
+        if (!s.error && s.data && s.data.session) session = s.data.session;
+      }
+      const claim = await api.claimInvite(code);
+      if (!claim.ok) return { ok: false, error: 'claim_failed' };
+      const prof = await api.getProfile(data.user.id);
+      const s = {
+        id: data.user.id,
+        name: (prof && prof.name) || name || normEmail.split('@')[0],
+        role: 'parent',
+        classId: null
+      };
+      persistSession(s);
+      return { ok: true, session: s };
+    },
     async getParentStudents() {
       const c = client();
       const { data, error } = await c.from('students').select('*');

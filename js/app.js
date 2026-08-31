@@ -203,10 +203,13 @@
       else renderLogin();
       return;
     }
-    if (!session) { redirect('login'); return; }
+    if (!session) {
+      if (seg[0] === 'signup') { renderSignup(); return; }
+      redirect('login'); return;
+    }
 
     /* parents only see their own portal */
-    if (session.role === 'parent' && seg[0] !== 'parent' && seg[0] !== 'invite') {
+    if (session.role === 'parent' && seg[0] !== 'parent' && seg[0] !== 'invite' && seg[0] !== 'signup') {
       redirect('parent');
       return;
     }
@@ -281,7 +284,7 @@
           '<button type="submit" class="btn btn-primary btn-block">' + t('login') + '</button>' +
         '</form>' +
         '<div style="margin-top:10px;text-align:center">' +
-          '<a href="#/parent" style="font-size:.85rem;color:var(--gold)">👨‍👩‍👧 ' + t('invite') + '</a>' +
+          '<a href="#/signup" style="font-size:.85rem;color:var(--gold)">👨‍👩‍👧 ' + t('signupTitle') + '</a>' +
         '</div>' +
         '<div class="login-foot">' + t('sampleOnly') + '</div>' +
       '</div>';
@@ -379,6 +382,89 @@
       viewActions['iv-claim'] = async function () {
         const res = await DB.claimInvite(code);
         if (!res.ok) { toast(t('saveFailed')); return; }
+        toast(t('inviteLinked'));
+        nav('parent');
+      };
+    };
+  }
+
+  /* ---------- PARENT SELF-SIGNUP (guest-accessible) ---------- */
+  async function renderSignup() {
+    applyLangTheme();
+    const t = I18N.t;
+    app.innerHTML = '' +
+      '<div class="login-wrap">' +
+        '<div style="position:fixed;top:14px;inset-inline-end:14px;display:flex;gap:8px">' +
+          '<button class="icon-btn" data-action="toggle-lang">' + nextLangLabel() + '</button>' +
+          '<button class="icon-btn" data-action="toggle-theme">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '☾') + '</button>' +
+        '</div>' +
+        '<div class="plaque"><img src="assets/logo.png" alt="' + esc(t('appName')) + '"></div>' +
+        '<div class="login-title">' +
+          '<span class="urdu">' + t('urduName') + '</span>' +
+          '<div class="h-display" style="margin-top:4px">' + esc(t('signupTitle')) + '</div>' +
+          '<div class="tag">' + esc(t('signupSub')) + '</div>' +
+        '</div>' +
+        '<div class="card login-card">' +
+          '<div class="field">' +
+            '<label for="su-code">' + t('inviteCode') + '</label>' +
+            '<input id="su-code" placeholder="' + t('inviteCodePlaceholder') + '" style="text-transform:uppercase">' +
+          '</div>' +
+          '<button class="btn btn-primary btn-block" data-action="su-lookup">' + t('inviteLookup') + '</button>' +
+        '</div>' +
+        '<div id="su-result"></div>' +
+        '<div style="margin-top:10px;text-align:center">' +
+          '<a href="#/login" style="font-size:.85rem;color:var(--gold)">' + t('signupHaveAccount') + '</a>' +
+        '</div>' +
+      '</div>';
+
+    viewActions['su-lookup'] = async function () {
+      const code = document.getElementById('su-code').value.trim().toUpperCase();
+      if (!code) return;
+      const stu = await DB.lookupInvite(code);
+      const box = document.getElementById('su-result');
+      if (!stu) {
+        box.innerHTML = '<div class="card" style="margin-top:14px;border-color:var(--bad)">' + t('inviteNotFound') + '</div>';
+        return;
+      }
+      box.innerHTML =
+        '<div class="card" style="margin-top:14px">' +
+          '<div class="section-title">' + t('inviteConfirmTitle') + '</div>' +
+          '<div class="student-row" style="padding:12px"><div>' +
+            '<div style="font-weight:600">' + nameDisplay(stu.name) + '</div>' +
+          '</div></div>' +
+          '<div class="field">' +
+            '<label for="su-name">' + t('parentName') + '</label>' +
+            '<input id="su-name" autocomplete="name" placeholder="' + esc(t('parentNamePlaceholder')) + '">' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="su-email">' + t('parentEmail') + '</label>' +
+            '<input id="su-email" type="email" autocomplete="email" placeholder="you@madrasa.com">' +
+            '<div style="font-size:.78rem;color:var(--ink-soft);margin-top:4px">' + t('parentEmailHint') + '</div>' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="su-pwd">' + t('password') + '</label>' +
+            '<input id="su-pwd" type="password" autocomplete="new-password">' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="su-pwd2">' + t('confirmPassword') + '</label>' +
+            '<input id="su-pwd2" type="password" autocomplete="new-password">' +
+          '</div>' +
+          '<button class="btn btn-primary btn-block" data-action="su-create" style="margin-top:4px">' + t('inviteCreateAccount') + '</button>' +
+        '</div>';
+      viewActions['su-create'] = async function () {
+        const name = document.getElementById('su-name').value.trim();
+        const email = document.getElementById('su-email').value.trim();
+        const pwd = document.getElementById('su-pwd').value;
+        const pwd2 = document.getElementById('su-pwd2').value;
+        if (!name) { toast(t('nameRequired')); return; }
+        if (!email) { toast(t('emailRequired')); return; }
+        if (pwd.length < 6) { toast(t('passwordShort')); return; }
+        if (pwd !== pwd2) { toast(t('passwordMismatch')); return; }
+        const res = await DB.signupParent(code, name, email, pwd);
+        if (!res.ok) {
+          toast(res.error === 'bad_email' ? t('parentEmailBad') : res.error === 'invalid_code' ? t('inviteNotFound') : t('saveFailed'));
+          return;
+        }
         toast(t('inviteLinked'));
         nav('parent');
       };

@@ -139,11 +139,27 @@ img { max-width: 100%; }
 .topbar .brand .t1 { font-weight: 700; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar .spacer { flex: 1; }
 @media (max-width: 480px) {
-  .topbar { padding: 8px 10px; gap: 8px; }
-  .topbar .brand { gap: 8px; }
-  .topbar .brand img { width: 30px; height: 30px; }
-  .topbar .brand .t1 { font-size: .8rem; }
-  .topbar .icon-btn { padding: 5px 9px; font-size: .78rem; min-height: 34px; }
+  .topbar {
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    gap: 6px 8px;
+    row-gap: 4px;
+  }
+  .topbar .brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 8px;
+  }
+  .topbar .brand img { width: 30px; height: 30px; flex: 0 0 auto; }
+  .topbar .brand .t1 {
+    font-size: .82rem;
+    white-space: normal;
+    line-height: 1.25;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .topbar .spacer { display: none; }
+  .topbar .icon-btn { flex: 0 0 auto; padding: 5px 9px; font-size: .78rem; min-height: 34px; }
 }
 
 /* ---------- Icon buttons (lang / theme) ---------- */

@@ -205,6 +205,25 @@ img { max-width: 100%; }
 [lang="ur"] .icon-btn, [lang="ar"] .icon-btn { font-size: 17px; }
 [lang="ar"] .icon-btn { font-family: var(--font-arabic); }
 
+/* ---------- Login / signup top-right toolbar (lang / theme / install) ---------- */
+.auth-tools {
+  position: fixed; top: max(14px, env(safe-area-inset-top, 0px));
+  inset-inline-end: 14px;
+  display: flex; flex-wrap: wrap; justify-content: flex-end;
+  gap: 8px;
+  z-index: 40;
+  max-width: calc(100vw - 24px);
+}
+.auth-tools .icon-btn {
+  min-height: 34px; padding: 5px 10px; font-size: .78rem;
+  white-space: nowrap;
+}
+[lang="ur"] .auth-tools .icon-btn, [lang="ar"] .auth-tools .icon-btn { font-size: 15px; }
+@media (max-width: 480px) {
+  .auth-tools { top: max(10px, env(safe-area-inset-top, 0px)); inset-inline-end: 10px; gap: 6px; }
+  .auth-tools .icon-btn { min-height: 32px; padding: 4px 8px; font-size: .72rem; }
+}
+
 /* ---------- Headings ---------- */
 .h-display {
   font-family: var(--font-display);
@@ -1071,6 +1090,18 @@ trash: 'Archive',
       signupSub: 'Enter the invite code you received, confirm your child, then create your account.',
       signupHaveAccount: 'Already have an account? Log in',
       parentNamePlaceholder: 'e.g. Muhammad Ahmed',
+      parentPhone: 'Phone Number',
+      parentPhonePlaceholder: 'e.g. +968 9123 4567',
+      parentPhoneBad: 'Please enter a valid phone number.',
+      profile: 'Profile',
+      profileMyKids: 'My Children',
+      profileKidsSub: 'Tap a child to view their reports.',
+      profileEditName: 'Full Name',
+      profileEditPhone: 'Phone Number',
+      profileSave: 'Save Changes',
+      profileSaved: 'Profile updated.',
+      profileNoKids: 'No children linked yet.',
+      profileWelcome: 'Parent account',
       parentEmail: 'Email (must end with @madrasa.com)',
       parentEmailHint: 'Your email must end with @madrasa.com',
       parentEmailBad: 'Email must end with @madrasa.com.',
@@ -1345,6 +1376,18 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       signupSub: 'انوائٹ کوڈ درج کریں، اپنے بچے کی تصدیق کریں، پھر اکاؤنٹ بنائیں۔',
       signupHaveAccount: 'پہلے سے اکاؤنٹ ہے؟ لاگ اِن کریں',
       parentNamePlaceholder: 'مثلاً محمد احمد',
+      parentPhone: 'فون نمبر',
+      parentPhonePlaceholder: 'مثلاً 9123 4567 968+',
+      parentPhoneBad: 'براہ کرم ایک درست فون نمبر درج کریں۔',
+      profile: 'پروفائل',
+      profileMyKids: 'میرے بچے',
+      profileKidsSub: 'رپورٹس دیکھنے کے لیے بچے پر ٹیپ کریں۔',
+      profileEditName: 'پورا نام',
+      profileEditPhone: 'فون نمبر',
+      profileSave: 'تبدیلیاں محفوظ کریں',
+      profileSaved: 'پروفائل اپ ڈیٹ ہو گئی۔',
+      profileNoKids: 'ابھی کوئی بچہ منسلک نہیں۔',
+      profileWelcome: 'والدین اکاؤنٹ',
       parentEmail: 'ای میل (مکمل @madrasa.com پر ہونی چاہیے)',
       parentEmailHint: 'آپ کی ای میل @madrasa.com پر ختم ہونی چاہیے',
       parentEmailBad: 'ای میل @madrasa.com پر ختم ہونی چاہیے۔',
@@ -1619,6 +1662,18 @@ trash: 'الأرشيف',
       signupSub: 'أدخل رمز الدعوة، تأكد من اسم طفلك، ثم أنشئ حسابك.',
       signupHaveAccount: 'لديك حساب بالفعل؟ سجّل الدخول',
       parentNamePlaceholder: 'مثال: محمد أحمد',
+      parentPhone: 'رقم الهاتف',
+      parentPhonePlaceholder: 'مثال: 9123 4567 968+',
+      parentPhoneBad: 'يرجى إدخال رقم هاتف صحيح.',
+      profile: 'الملف الشخصي',
+      profileMyKids: 'أطفالي',
+      profileKidsSub: 'اضغط على طفل لعرض تقاريره.',
+      profileEditName: 'الاسم الكامل',
+      profileEditPhone: 'رقم الهاتف',
+      profileSave: 'حفظ التغييرات',
+      profileSaved: 'تم تحديث الملف الشخصي.',
+      profileNoKids: 'لا يوجد أطفال مرتبطون بعد.',
+      profileWelcome: 'حساب ولي الأمر',
       parentEmail: 'البريد الإلكتروني (يجب أن ينتهي بـ @madrasa.com)',
       parentEmailHint: 'يجب أن ينتهي بريدك بـ @madrasa.com',
       parentEmailBad: 'يجب أن ينتهي البريد بـ @madrasa.com.',
@@ -1853,6 +1908,22 @@ const DB = (function () {
       if (error || !data) return null;
       return data;
     },
+    async updateParentProfile(userId, fields) {
+      const c = client();
+      const patch = {};
+      if (fields.name != null) patch.name = String(fields.name).trim();
+      if (fields.phone != null) patch.phone = String(fields.phone).trim();
+      if (!Object.keys(patch).length) return { ok: true };
+      const { error } = await c.from('profiles').update(patch).eq('id', userId);
+      if (error) return { ok: false, error: error.message };
+      /* keep the cached session name in sync */
+      const s = api.getSession();
+      if (s && patch.name && s.id === userId) {
+        s.name = patch.name;
+        persistSession(s);
+      }
+      return { ok: true };
+    },
     /* sync view of current session (the UI reads it synchronously) */
     getSession() {
       return getCachedSession();
@@ -2040,7 +2111,7 @@ const DB = (function () {
       return error ? { ok: false } : { ok: !!data };
     },
     /* self-signup: create a parent account, auto-confirm, claim the invite, and log in */
-    async signupParent(code, name, email, password) {
+    async signupParent(code, name, phone, email, password) {
       const c = client();
       const normEmail = String(email || '').trim().toLowerCase();
       if (!/^[^@\s]+@madrasa\.com$/i.test(normEmail)) return { ok: false, error: 'bad_email' };
@@ -2049,7 +2120,7 @@ const DB = (function () {
       const { data, error } = await c.auth.signUp({
         email: normEmail,
         password: password,
-        options: { data: { name: String(name || '').trim(), role: 'parent' } }
+        options: { data: { name: String(name || '').trim(), role: 'parent', phone: String(phone || '').trim() } }
       });
       if (error || !data.user) return { ok: false, error: (error && error.message) || 'signup_failed' };
       let session = data.session;
@@ -2059,6 +2130,12 @@ const DB = (function () {
       }
       const claim = await api.claimInvite(code);
       if (!claim.ok) return { ok: false, error: 'claim_failed' };
+      /* sync parent contact info to the linked student so admin/qari see it */
+      const contact = { parent_name: String(name || '').trim() };
+      if (phone) contact.parent_number = String(phone).trim();
+      await c.from('students').update(contact).eq('id', stu.id);
+      /* also store phone on the profile for later editing */
+      if (phone) await c.from('profiles').update({ phone: String(phone).trim() }).eq('id', data.user.id);
       const prof = await api.getProfile(data.user.id);
       const s = {
         id: data.user.id,
@@ -2639,7 +2716,7 @@ const DB = (function () {
     }
 
     /* parents only see their own portal */
-    if (session.role === 'parent' && seg[0] !== 'parent' && seg[0] !== 'invite' && seg[0] !== 'signup') {
+    if (session.role === 'parent' && seg[0] !== 'parent' && seg[0] !== 'invite' && seg[0] !== 'signup' && seg[0] !== 'profile') {
       redirect('parent');
       return;
     }
@@ -2667,6 +2744,7 @@ const DB = (function () {
       else if (seg[0] === 'trash') await renderTrash(session);
       else if (seg[0] === 'password') await renderChangePassword(session);
       else if (seg[0] === 'invite') await renderInvite(session);
+      else if (seg[0] === 'profile') await renderParentProfile(session);
       else if (seg[0] === 'parent') await renderParentDashboard(session);
       else redirect('dashboard');
     } catch (e) {
@@ -2692,7 +2770,7 @@ const DB = (function () {
     const t = I18N.t;
     app.innerHTML = '' +
       '<div class="login-wrap">' +
-        '<div style="position:fixed;top:14px;inset-inline-end:14px;display:flex;gap:8px">' +
+        '<div class="auth-tools">' +
           (DB.installHint ? '<button class="icon-btn" data-action="install-app" title="' + esc(t('parentInstallApp')) + '">📲</button>' : '') +
           '<button class="icon-btn" data-action="toggle-lang">' + nextLangLabel() + '</button>' +
           '<button class="icon-btn" data-action="toggle-theme">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '☾') + '</button>' +
@@ -2772,6 +2850,63 @@ const DB = (function () {
     };
   }
 
+  /* ---------- PARENT PROFILE ---------- */
+  async function renderParentProfile(session) {
+    const t = I18N.t;
+    const prof = await DB.getProfile(session.id);
+    const students = await DB.getParentStudents();
+    const kids = students.map(function (st) {
+      return '<button class="student-row" style="width:100%;text-align:left;margin-bottom:8px;cursor:pointer" data-action="pf-kid" data-id="' + st.id + '">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<span style="font-size:1.1rem">👦</span>' +
+          '<div>' +
+            '<div style="font-weight:600">' + nameDisplay(st.name) + '</div>' +
+            (st.parentNumber ? '<div style="font-size:.8rem;color:var(--ink-soft)">📞 ' + esc(st.parentNumber) + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+      '</button>';
+    }).join('') || '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('profileNoKids') + '</div>';
+
+    app.innerHTML = '' +
+      topbar(true) +
+      '<main class="app-main">' +
+        '<span class="eyebrow">👤</span>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + t('profile') + '</h1>' +
+        '<div class="card" style="margin-top:14px">' +
+          '<div class="section-title">' + t('profileWelcome') + '</div>' +
+          '<div class="field">' +
+            '<label for="pf-name">' + t('profileEditName') + '</label>' +
+            '<input id="pf-name" value="' + esc((prof && prof.name) || '') + '" autocomplete="name">' +
+          '</div>' +
+          '<div class="field">' +
+            '<label for="pf-phone">' + t('profileEditPhone') + '</label>' +
+            '<input id="pf-phone" type="tel" inputmode="tel" autocomplete="tel" value="' + esc((prof && prof.phone) || '') + '" placeholder="' + esc(t('parentPhonePlaceholder')) + '">' +
+          '</div>' +
+          '<button class="btn btn-primary btn-block" data-action="pf-save">' + t('profileSave') + '</button>' +
+          '<a class="btn btn-ghost btn-block" href="#/password" style="margin-top:8px">🔐 ' + t('changePassword') + '</a>' +
+        '</div>' +
+        '<div class="card" style="margin-top:14px">' +
+          '<div class="section-title">' + t('profileMyKids') + '</div>' +
+          '<div style="font-size:.85rem;color:var(--ink-soft);margin-bottom:10px">' + t('profileKidsSub') + '</div>' +
+          kids +
+        '</div>' +
+      '</main>';
+
+    viewActions['pf-save'] = async function () {
+      const name = document.getElementById('pf-name').value.trim();
+      const phone = document.getElementById('pf-phone').value.trim();
+      if (!name) { toast(t('nameRequired')); return; }
+      if (phone && !/^[+0-9][0-9\s\-()]{5,19}$/.test(phone)) { toast(t('parentPhoneBad')); return; }
+      const res = await DB.updateParentProfile(session.id, { name: name, phone: phone });
+      if (!res.ok) { toast(t('saveFailed')); return; }
+      toast(t('profileSaved'));
+      nav('parent');
+    };
+    viewActions['pf-kid'] = function (btn) {
+      nav('parent?c=' + btn.getAttribute('data-id') + '&v=overview');
+    };
+  }
+
   /* ---------- INVITE (parent onboarding) ---------- */
   async function renderInvite(session) {
     const t = I18N.t;
@@ -2825,7 +2960,7 @@ const DB = (function () {
     const t = I18N.t;
     app.innerHTML = '' +
       '<div class="login-wrap">' +
-        '<div style="position:fixed;top:14px;inset-inline-end:14px;display:flex;gap:8px">' +
+        '<div class="auth-tools">' +
           (DB.installHint ? '<button class="icon-btn" data-action="install-app" title="' + esc(t('parentInstallApp')) + '">📲</button>' : '') +
           '<button class="icon-btn" data-action="toggle-lang">' + nextLangLabel() + '</button>' +
           '<button class="icon-btn" data-action="toggle-theme">' + (document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '☾') + '</button>' +
@@ -2869,6 +3004,10 @@ const DB = (function () {
             '<input id="su-name" autocomplete="name" placeholder="' + esc(t('parentNamePlaceholder')) + '">' +
           '</div>' +
           '<div class="field">' +
+            '<label for="su-phone">' + t('parentPhone') + '</label>' +
+            '<input id="su-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="' + esc(t('parentPhonePlaceholder')) + '">' +
+          '</div>' +
+          '<div class="field">' +
             '<label for="su-email">' + t('parentEmail') + '</label>' +
             '<input id="su-email" type="email" autocomplete="email" placeholder="you@madrasa.com">' +
             '<div style="font-size:.78rem;color:var(--ink-soft);margin-top:4px">' + t('parentEmailHint') + '</div>' +
@@ -2885,14 +3024,16 @@ const DB = (function () {
         '</div>';
       viewActions['su-create'] = async function () {
         const name = document.getElementById('su-name').value.trim();
+        const phone = document.getElementById('su-phone').value.trim();
         const email = document.getElementById('su-email').value.trim();
         const pwd = document.getElementById('su-pwd').value;
         const pwd2 = document.getElementById('su-pwd2').value;
         if (!name) { toast(t('nameRequired')); return; }
+        if (phone && !/^[+0-9][0-9\s\-()]{5,19}$/.test(phone)) { toast(t('parentPhoneBad')); return; }
         if (!email) { toast(t('emailRequired')); return; }
         if (pwd.length < 6) { toast(t('passwordShort')); return; }
         if (pwd !== pwd2) { toast(t('passwordMismatch')); return; }
-        const res = await DB.signupParent(code, name, email, pwd);
+        const res = await DB.signupParent(code, name, phone, email, pwd);
         if (!res.ok) {
           toast(res.error === 'bad_email' ? t('parentEmailBad') : res.error === 'invalid_code' ? t('inviteNotFound') : t('saveFailed'));
           return;
@@ -2958,6 +3099,7 @@ const DB = (function () {
         '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(session.name) + '</h1>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="invite-more">+ ' + t('invite') + '</button>' +
+          '<a class="btn btn-ghost btn-sm" href="#/profile">👤 ' + t('profile') + '</a>' +
           (DB.installHint ?
             '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
           '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +

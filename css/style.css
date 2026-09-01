@@ -179,6 +179,25 @@ img { max-width: 100%; }
 [lang="ur"] .icon-btn, [lang="ar"] .icon-btn { font-size: 17px; }
 [lang="ar"] .icon-btn { font-family: var(--font-arabic); }
 
+/* ---------- Login / signup top-right toolbar (lang / theme / install) ---------- */
+.auth-tools {
+  position: fixed; top: max(14px, env(safe-area-inset-top, 0px));
+  inset-inline-end: 14px;
+  display: flex; flex-wrap: wrap; justify-content: flex-end;
+  gap: 8px;
+  z-index: 40;
+  max-width: calc(100vw - 24px);
+}
+.auth-tools .icon-btn {
+  min-height: 34px; padding: 5px 10px; font-size: .78rem;
+  white-space: nowrap;
+}
+[lang="ur"] .auth-tools .icon-btn, [lang="ar"] .auth-tools .icon-btn { font-size: 15px; }
+@media (max-width: 480px) {
+  .auth-tools { top: max(10px, env(safe-area-inset-top, 0px)); inset-inline-end: 10px; gap: 6px; }
+  .auth-tools .icon-btn { min-height: 32px; padding: 4px 8px; font-size: .72rem; }
+}
+
 /* ---------- Headings ---------- */
 .h-display {
   font-family: var(--font-display);

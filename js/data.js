@@ -161,6 +161,22 @@ const DB = (function () {
       if (error || !data) return null;
       return data;
     },
+    async updateParentProfile(userId, fields) {
+      const c = client();
+      const patch = {};
+      if (fields.name != null) patch.name = String(fields.name).trim();
+      if (fields.phone != null) patch.phone = String(fields.phone).trim();
+      if (!Object.keys(patch).length) return { ok: true };
+      const { error } = await c.from('profiles').update(patch).eq('id', userId);
+      if (error) return { ok: false, error: error.message };
+      /* keep the cached session name in sync */
+      const s = api.getSession();
+      if (s && patch.name && s.id === userId) {
+        s.name = patch.name;
+        persistSession(s);
+      }
+      return { ok: true };
+    },
     /* sync view of current session (the UI reads it synchronously) */
     getSession() {
       return getCachedSession();
@@ -348,7 +364,7 @@ const DB = (function () {
       return error ? { ok: false } : { ok: !!data };
     },
     /* self-signup: create a parent account, auto-confirm, claim the invite, and log in */
-    async signupParent(code, name, email, password) {
+    async signupParent(code, name, phone, email, password) {
       const c = client();
       const normEmail = String(email || '').trim().toLowerCase();
       if (!/^[^@\s]+@madrasa\.com$/i.test(normEmail)) return { ok: false, error: 'bad_email' };
@@ -357,7 +373,7 @@ const DB = (function () {
       const { data, error } = await c.auth.signUp({
         email: normEmail,
         password: password,
-        options: { data: { name: String(name || '').trim(), role: 'parent' } }
+        options: { data: { name: String(name || '').trim(), role: 'parent', phone: String(phone || '').trim() } }
       });
       if (error || !data.user) return { ok: false, error: (error && error.message) || 'signup_failed' };
       let session = data.session;
@@ -367,6 +383,12 @@ const DB = (function () {
       }
       const claim = await api.claimInvite(code);
       if (!claim.ok) return { ok: false, error: 'claim_failed' };
+      /* sync parent contact info to the linked student so admin/qari see it */
+      const contact = { parent_name: String(name || '').trim() };
+      if (phone) contact.parent_number = String(phone).trim();
+      await c.from('students').update(contact).eq('id', stu.id);
+      /* also store phone on the profile for later editing */
+      if (phone) await c.from('profiles').update({ phone: String(phone).trim() }).eq('id', data.user.id);
       const prof = await api.getProfile(data.user.id);
       const s = {
         id: data.user.id,

@@ -529,15 +529,14 @@
         '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(session.name) + '</h1>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="invite-more">+ ' + t('invite') + '</button>' +
-          '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
           (DB.installHint ?
             '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
+          '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
         '</div>' +
         (students.length > 1 ? '<div class="p-chips">' + chips + '</div>' : '') +
         '<div class="p-tabs">' + tabBar + '</div>' +
         content +
       '</main>';
-
     viewActions['invite-more'] = function () { nav('invite'); };
     viewActions['install-app'] = function () {
       handleInstallClick();
@@ -863,6 +862,9 @@
           '<a class="btn btn-blue btn-block" href="#/attendance-class">📅 ' + t('attendance') + '</a>' +
           '<a class="btn btn-gold btn-block" href="#/fees">💰 ' + t('qariFees') + '</a>' +
           '<a class="btn btn-ghost btn-block" href="#/quick">⚡ ' + t('quickEntry') + '</a>' +
+          (DB.installHint ?
+            '<button class="btn btn-ghost btn-block" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
+          '<a class="btn btn-ghost btn-block" href="#/password">🔐 ' + t('changePassword') + '</a>' +
         '</div>' +
         (students.length - todayReportCount > 0 ?
           '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' +
@@ -1336,6 +1338,11 @@
             '<span><span class="nm">' + t('trash') + '</span><br><span class="sub">' + t('trashSub') + '</span></span>' +
             '<span style="margin-inline-start:auto;color:var(--gold)">&rsaquo;</span>' +
           '</a>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap" class="no-print">' +
+          (DB.installHint ?
+            '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
+          '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
         '</div>' +
       '</main>';
   }
@@ -3025,8 +3032,6 @@
           '<span class="t1">' + esc(I18N.t('appName')) + '</span>' +
         '</div>' +
         '<div class="spacer"></div>' +
-        (DB.installHint ? '<button class="icon-btn" data-action="install-app" title="' + esc(I18N.t('parentInstallApp')) + '">📲</button>' : '') +
-        '<button class="icon-btn" data-action="go-password" title="' + esc(I18N.t('changePassword')) + '">🔐</button>' +
         '<button class="icon-btn" data-action="toggle-lang" title="Language">' +
           esc(nextLangLabel()) +
         '</button>' +

@@ -2271,8 +2271,9 @@ const DB = (function () {
       const c = client();
       const y = String(year);
       const m = String(month).padStart(2, '0');
+      const last = String(new Date(year, month, 0).getDate()).padStart(2, '0');
       const { data } = await c.from('reports').select('*').eq('student_id', studentId)
-        .gte('date', y + '-' + m + '-01').lte('date', y + '-' + m + '-31');
+        .gte('date', y + '-' + m + '-01').lte('date', y + '-' + m + '-' + last);
       const out = {};
       (data || []).forEach(function (r) { out[dstr(new Date(r.date))] = mapReport(r); });
       return out;
@@ -2291,8 +2292,9 @@ const DB = (function () {
       if (!studentIds || !studentIds.length) return {};
       const y = String(year);
       const m = String(month).padStart(2, '0');
+      const last = String(new Date(year, month, 0).getDate()).padStart(2, '0');
       const { data } = await c.from('reports').select('*').in('student_id', studentIds)
-        .gte('date', y + '-' + m + '-01').lte('date', y + '-' + m + '-31');
+        .gte('date', y + '-' + m + '-01').lte('date', y + '-' + m + '-' + last);
       const out = {};
       (data || []).forEach(function (r) {
         const ds = dstr(new Date(r.date));

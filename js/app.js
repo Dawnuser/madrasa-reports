@@ -628,21 +628,17 @@
 
   function parentManzilName(r, manzilIsTri) {
     if (!r.present || !r.manzilDone) return '—';
-    if (manzilIsTri) {
-      if (r.manzil === 'half') return I18N.t('halfPara');
-      if (r.manzil === 'third') return I18N.t('thirdPara');
-      if (r.manzil === 'full') return I18N.t('fullPara');
-      return '—';
-    }
+    if (manzilIsTri) return manzilDisplay(r.manzil);
     const parts = [];
     if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
     if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
     return parts.join('+') || '—';
   }
 
-  function parentSabaqCell(r) {
+  function parentSabaqCell(r, isQaida) {
     if (!r.present) return '—';
     if (!r.sabaqDone) return I18N.t('notDone');
+    if (isQaida) return I18N.t('lessonNo') + ' ' + num(r.pages || 0);
     const parts = [];
     if (r.pages) parts.push(num(r.pages) + 'p');
     if (r.lines) parts.push(num(r.lines) + 'l');
@@ -653,6 +649,7 @@
     const t = I18N.t;
     const cls = classes[st.classId];
     const manzilIsTri = parentTrack(st, classes) === 'hifz';
+    const isQaida = parentTrack(st, classes) === 'qaida';
     const daysBack = 13;
     const fromDs = DB.addDays(todayDs(), -daysBack);
     const reps = await DB.getParentReportRange(st.id, fromDs, todayDs());
@@ -665,7 +662,7 @@
       return '<tr class="' + (r.present ? '' : 'absent') + '">' +
         '<td>' + fmtDate(k) + '</td>' +
         '<td>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent')) + '</td>' +
-        '<td>' + parentSabaqCell(r) + '</td>' +
+        '<td>' + parentSabaqCell(r, isQaida) + '</td>' +
         '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
         '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : '—') + '</td>' +
       '</tr>';
@@ -676,8 +673,8 @@
         '<div class="p-card-top">' +
           '<div>' +
             '<div style="font-weight:800;font-size:1.05rem">' + nameDisplay(st.name) + '</div>' +
-            '<div class="meta">' + t('parentClass') + ': ' + nameDisplay(cls ? cls.name : '—') + ' · ' + t('para') + ' ' + num(st.para) +
-              (st.currentPage ? ' · ' + t('page') + ' ' + num(st.currentPage) : '') + '</div>' +
+            '<div class="meta">' + t('parentClass') + ': ' + nameDisplay(cls ? cls.name : '—') + ' · ' + (isQaida ? t('lessonNo') : t('para')) + ' ' + num(st.para) +
+              (st.currentPage && !isQaida ? ' · ' + t('page') + ' ' + num(st.currentPage) : '') + '</div>' +
           '</div>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
 '<span class="badge badge-ok">' + t('parentPresentCount') + ': ' + num(present) + '</span>' +
@@ -695,7 +692,8 @@
 
   async function parentDaily(st, classes, q) {
     const t = I18N.t;
-    const manzilIsTri = parentTrack(st, classes) === 'hifz';
+const manzilIsTri = parentTrack(st, classes) === 'hifz';
+    const isQaida = parentTrack(st, classes) === 'qaida';
     const now = new Date();
     const months = feeMonths(6);
     const sel = safeYm(q);
@@ -738,7 +736,7 @@
               '<td class="num">' + num(parseInt(row.ds.slice(8), 10)) + '</td>' +
               '<td>' + fmtDate(row.ds) + '</td>' +
               '<td>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent')) + '</td>' +
-              '<td>' + parentSabaqCell(r) + '</td>' +
+              '<td>' + parentSabaqCell(r, isQaida) + '</td>' +
               '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
               '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : '—') + '</td>' +
               '<td class="cmt">' + (r.comment ? esc(r.comment) : '—') + '</td>' +
@@ -749,9 +747,9 @@
 
   async function parentWeekly(st, classes, q) {
     const t = I18N.t;
-    const mondays = lastNMondays(6);
-    let wk = weekOfMonday(todayDs());
-    if (q && q.wk && mondays.indexOf(q.wk) >= 0) wk = q.wk;
+    const weekStarts = lastNWeekStarts(6);
+    let wk = weekStartOf(todayDs());
+    if (q && q.wk && weekStarts.indexOf(q.wk) >= 0) wk = q.wk;
     const auto = { newSafa: 0, sabaqDays: 0 };
     const weekReps = await DB.getReportRange(st.id, wk, DB.addDays(wk, 6));
     for (let i = 0; i < 7; i++) {
@@ -768,7 +766,7 @@
       '<div class="field">' +
         '<label>' + t('weekOf') + '</label>' +
         '<select id="p-week" data-change="p-week">' +
-          mondays.map(function (m) {
+          weekStarts.map(function (m) {
             return '<option value="' + m + '"' + (m === wk ? ' selected' : '') + '>' + weekLabel(m) + '</option>';
           }).join('') +
         '</select>' +
@@ -927,9 +925,11 @@
           '<a class="btn btn-blue btn-block" href="#/attendance-class">📅 ' + t('attendance') + '</a>' +
           '<a class="btn btn-gold btn-block" href="#/fees">💰 ' + t('qariFees') + '</a>' +
           '<a class="btn btn-ghost btn-block" href="#/quick">⚡ ' + t('quickEntry') + '</a>' +
+          '<div class="dash-sub-actions">' +
           (DB.installHint ?
-            '<button class="btn btn-ghost btn-block" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
-          '<a class="btn btn-ghost btn-block" href="#/password">🔐 ' + t('changePassword') + '</a>' +
+            '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
+          '<a class="btn btn-ghost btn-sm" href="#/password">🔐 ' + t('changePassword') + '</a>' +
+          '</div>' +
         '</div>' +
         (students.length - todayReportCount > 0 ?
           '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' +
@@ -1016,15 +1016,15 @@
     const mpg = g('f-mpages'), mln = g('f-mlines');
     if (mpg) draft.manzilPages = parseInt(mpg.value, 10) || 0;
     if (mln) draft.manzilLines = parseInt(mln.value, 10) || 0;
-    const mp = app.querySelector('.seg.tri .opt.on');
-    if (mp) draft.manzil = mp.getAttribute('data-v');
+    const fmanz = g('f-manzil');
+    if (fmanz) draft.manzil = fmanz.value;
     const cm = g('f-comment');
     if (cm) draft.comment = cm.value;
     saveDraft(draft);
   }
 
   function wireDraftAutosave() {
-    const ids = ['sw-sabaq', 'sw-sabqi', 'sw-manzil', 'f-pages', 'f-lines', 'f-mpages', 'f-mlines', 'f-comment'];
+    const ids = ['sw-sabaq', 'sw-sabqi', 'sw-manzil', 'f-pages', 'f-lines', 'f-mpages', 'f-mlines', 'f-manzil', 'f-comment'];
     ids.forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1060,20 +1060,22 @@
     const today = todayDs();
     const yest = yesterdayDs();
     const locked = ds < yest;
-    const manzilOpts = [['half', t('halfPara')], ['third', t('thirdPara')], ['full', t('fullPara')]];
 
     /* which fields a student of this track gets */
+    const isQaida = track === 'qaida';
     const showSabqi = track === 'hifz';
     const showManzil = track !== 'qaida';
     const manzilIsTri = track === 'hifz';
     const trackLabel = t(track === 'hifz' ? 'hifz' : track === 'tilawa' ? 'tilawa' : 'qaida');
+    const sabaqRange = isQaida ? 17 : 10;
 
     app.innerHTML = '' +
       topbar(true) +
       '<main class="app-main">' +
         '<span class="eyebrow">' + t('reportFor') + '</span>' +
         '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(student.name) + '</h1>' +
-        '<div class="pill" style="margin-top:8px">' + t('para') + ' ' + num(student.para) + ' · ' + t('category') + ' ' + esc(student.category) + ' · ' + esc(trackLabel) +
+        '<div class="pill" style="margin-top:8px">' + (isQaida ? t('lessonNo') : t('para')) + ' ' + num(student.para) +
+          (track === 'hifz' ? ' · ' + t('category') + ' ' + esc(student.category) : '') + ' · ' + esc(trackLabel) +
           (track !== 'hifz' && student.shift ? ' · 🕗 ' + esc(t('shift' + student.shift.replace('sh', '')) + ' (' + (student.shift === 'sh1' ? '8-10' : student.shift === 'sh2' ? '10-12' : student.shift === 'sh3' ? '4-6' : '6-8') + ')') : '') + '</div>' +
         (locked ? '<div class="card" style="margin-top:14px;border-color:var(--bad)">' + t('locked') + '</div>' : '') +
         (!existing ? '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('noReportForDay') + '</div>' : '') +
@@ -1096,8 +1098,8 @@
             '</div>' +
             '<div class="reveal' + (rep.sabaqDone ? ' open' : '') + '" id="reveal-sabaq">' +
               '<div class="sub-row">' +
-                '<div class="field"><label for="f-pages">' + t('pages') + '</label>' +
-                  '<select id="f-pages"' + (locked ? ' disabled' : '') + '>' + rangeOpts(10, rep.pages) + '</select></div>' +
+                '<div class="field"><label for="f-pages">' + (isQaida ? t('lessonNo') : t('pages')) + '</label>' +
+                  '<select id="f-pages"' + (locked ? ' disabled' : '') + '>' + rangeOpts(sabaqRange, rep.pages) + '</select></div>' +
                 '<div class="field"><label for="f-lines">' + t('lines') + '</label>' +
                   '<select id="f-lines"' + (locked ? ' disabled' : '') + '>' + rangeOpts(20, rep.lines) + '</select></div>' +
               '</div>' +
@@ -1114,11 +1116,8 @@
               '</div>' : '') +
             (showManzil && manzilIsTri ?
               '<div class="reveal' + (rep.manzilDone ? ' open' : '') + '" id="reveal-manzil">' +
-                '<div class="seg tri">' +
-                  manzilOpts.map(function (o) {
-                    return '<button type="button" class="opt' + (rep.manzil === o[0] ? ' on' : '') + '" data-action="set-manzil" data-v="' + o[0] + '"' + (locked ? ' disabled' : '') + '>' + o[1] + '</button>';
-                  }).join('') +
-                '</div>' +
+                '<div class="field"><label for="f-manzil">' + t('manzil') + ' — ' + t('para') + '</label>' +
+                  '<select id="f-manzil"' + (locked ? ' disabled' : '') + '>' + manzilOptsHtml(manzilDisplay(rep.manzil)) + '</select></div>' +
               '</div>' : '') +
             (showManzil && !manzilIsTri ?
               '<div class="reveal' + (rep.manzilDone ? ' open' : '') + '" id="reveal-manzil">' +
@@ -1168,15 +1167,6 @@
       draft.present = btn.getAttribute('data-v') === '1';
       renderStudentForm(session, sid, ds);
     };
-    viewActions['set-manzil'] = function (btn) {
-      draft.manzil = btn.getAttribute('data-v');
-      app.querySelectorAll('[data-action="set-manzil"]').forEach(function (b) {
-        b.classList.toggle('on', b === btn);
-      });
-      saveDraft(draft);
-      const badge = document.getElementById('draft-badge');
-      if (badge) badge.style.display = 'inline-flex';
-    };
     viewActions['save-report'] = function () {
       captureWidgets();
       const rep2 = {
@@ -1211,6 +1201,20 @@
       out += '<option value="' + i + '"' + (selected === i ? ' selected' : '') + '>' + num(i) + '</option>';
     }
     return out;
+  }
+
+  const MANZIL_OPTS = ['0.25', '0.5', '0.75', '1', '1.25', '1.5'];
+  function manzilOptsHtml(selected) {
+    return MANZIL_OPTS.map(function (v) {
+      return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + v + '</option>';
+    }).join('');
+  }
+  function manzilDisplay(v) {
+    if (MANZIL_OPTS.indexOf(v) >= 0) return v;
+    if (v === 'half') return '0.5';
+    if (v === 'third') return '0.75';
+    if (v === 'full') return '1';
+    return '—';
   }
 
   function progressChart(rows, y, m) {
@@ -1276,12 +1280,7 @@
 
     const manzilName = function (r) {
       if (!r.present || !r.manzilDone) return '—';
-      if (manzilIsTri) {
-        if (r.manzil === 'half') return t('halfPara');
-        if (r.manzil === 'third') return t('thirdPara');
-        if (r.manzil === 'full') return t('fullPara');
-        return '—';
-      }
+      if (manzilIsTri) return manzilDisplay(r.manzil);
       const parts = [];
       if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
       if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
@@ -1290,6 +1289,7 @@
     const sabaqCell = function (r) {
       if (!r.present) return '—';
       if (!r.sabaqDone) return t('notDone');
+      if (trackH === 'qaida') return t('lessonNo') + ' ' + num(r.pages || 0);
       const parts = [];
       if (r.pages) parts.push(num(r.pages) + 'p');
       if (r.lines) parts.push(num(r.lines) + 'l');
@@ -1638,12 +1638,12 @@
       return (
         '<div class="student-row">' +
           '<div>' +
-            '<div style="font-weight:600">' + nameDisplay(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span> ' +
+            '<div style="font-weight:600">' + nameDisplay(s.name) + (ty === 'hifz' ? ' <span class="badge badge-cat">' + esc(s.category) + '</span> ' : '') +
               (ty === 'hifz'
                 ? '<span class="badge">' + (s.fullTime ? t('fullTime') : t('partTime')) + '</span>'
                 : '<span class="badge badge-shift">' + esc(s.shift ? (t('shift' + s.shift.replace('sh', '')) + ' (' + (s.shift === 'sh1' ? '8-10' : s.shift === 'sh2' ? '10-12' : s.shift === 'sh3' ? '4-6' : '6-8') + ')') : t('shiftNone')) + '</span>') +
               ' <span class="badge badge-track">' + esc(trackLabel(s)) + '</span></div>' +
-            '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + ' · ' + t('age') + ' ' + num(s.age) + ' · ' + esc(s.parentName) + ' · ' + esc(s.parentNumber) + '</div>' +
+            '<div class="meta">' + (ty === 'qaida' ? t('lessonNo') + ' ' + num(s.para) : t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—')) + ' · ' + t('age') + ' ' + num(s.age) + ' · ' + esc(s.parentName) + ' · ' + esc(s.parentNumber) + '</div>' +
           '</div>' +
           '<div class="row-actions">' +
             '<a class="icon-mini" href="#/attendance/' + s.id + '" title="' + t('attendance') + '">📅</a>' +
@@ -1700,9 +1700,18 @@
       };
       const defTrack = st.type || cls.type || 'hifz';
       const applyTrackUi = function () {
-        const tr = (document.getElementById('m-track').value || defTrack) === 'hifz';
-        document.getElementById('m-full-wrap').style.display = tr ? '' : 'none';
-        document.getElementById('m-shift-wrap').style.display = tr ? 'none' : '';
+        const tr = document.getElementById('m-track').value || defTrack;
+        const isHifz = tr === 'hifz';
+        const isQaida = tr === 'qaida';
+        document.getElementById('m-full-wrap').style.display = isHifz ? '' : 'none';
+        document.getElementById('m-shift-wrap').style.display = isHifz ? 'none' : '';
+        document.getElementById('m-para-wrap').style.display = isHifz || isQaida ? '' : 'none';
+        document.getElementById('m-page-wrap').style.display = isHifz ? '' : 'none';
+        document.getElementById('m-cat-wrap').style.display = isHifz ? '' : 'none';
+        const pin = document.getElementById('m-para');
+        if (pin) pin.max = isQaida ? 17 : 30;
+        const plabel = document.getElementById('m-para-label');
+        if (plabel) plabel.textContent = isQaida ? t('currentLesson') : t('currentPara');
       };
       const b = document.createElement('div');
       b.className = 'modal-back';
@@ -1712,9 +1721,9 @@
           '<div class="field"><label>' + t('name') + '</label><input id="m-name" value="' + esc(st.name || '') + '"></div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
             '<div class="field"><label>' + t('age') + '</label><input id="m-age" type="number" min="3" max="30" value="' + (st.age || '') + '"></div>' +
-            '<div class="field"><label>' + t('currentPara') + '</label><input id="m-para" type="number" min="1" max="30" value="' + (st.para || '') + '"></div>' +
+            '<div class="field" id="m-para-wrap"><label id="m-para-label">' + t('currentPara') + '</label><input id="m-para" type="number" min="1" max="30" value="' + (st.para || '') + '"></div>' +
           '</div>' +
-          '<div class="field"><label>' + t('currentPage') + ' — <small style="color:var(--ink-soft)">' + t('currentPageHint') + '</small></label>' +
+          '<div class="field" id="m-page-wrap"><label>' + t('currentPage') + ' — <small style="color:var(--ink-soft)">' + t('currentPageHint') + '</small></label>' +
             '<input id="m-page" type="number" min="1" max="604" value="' + (st.currentPage || '') + '"></div>' +
           '<div class="field" id="m-full-wrap"><label>' + t('fullTime') + ' / ' + t('partTime') + '</label>' +
             '<select id="m-full">' + fullSel(st.fullTime) + '</select></div>' +
@@ -1731,7 +1740,7 @@
             '</div>' : '') +
           '<div class="field"><label>' + t('parentName') + '</label><input id="m-pname" value="' + esc(st.parentName || '') + '"></div>' +
           '<div class="field"><label>' + t('parentNumber') + '</label><input id="m-pphone" type="tel" value="' + esc(st.parentNumber || '') + '"></div>' +
-          '<div class="field"><label>' + t('category') + ' — <small style="color:var(--ink-soft)">' + t('catHint') + '</small></label>' +
+          '<div class="field" id="m-cat-wrap"><label>' + t('category') + ' — <small style="color:var(--ink-soft)">' + t('catHint') + '</small></label>' +
             '<select id="m-cat">' + opts + '</select></div>' +
           '<div style="display:flex;gap:10px">' +
             '<button class="btn btn-primary btn-block" data-action="m-save">' + t('saveOk') + '</button>' +
@@ -1759,17 +1768,20 @@
           return;
         }
         if (a.getAttribute('data-action') === 'm-save') {
+          const trv = document.getElementById('m-track').value || defTrack;
+          const isHifz = trv === 'hifz';
+          const isQaida = trv === 'qaida';
           const st2 = Object.assign({}, currentEdit, {
             name: document.getElementById('m-name').value.trim(),
             age: parseInt(document.getElementById('m-age').value, 10) || null,
-            para: parseInt(document.getElementById('m-para').value, 10) || null,
-            currentPage: parseInt(document.getElementById('m-page').value, 10) || null,
+            para: (isHifz || isQaida) ? (parseInt(document.getElementById('m-para').value, 10) || null) : null,
+            currentPage: isHifz ? (parseInt(document.getElementById('m-page').value, 10) || null) : null,
             fullTime: document.getElementById('m-full').value === 'full',
             type: document.getElementById('m-track').value || null,
             shift: document.getElementById('m-shift').value || null,
             parentName: document.getElementById('m-pname').value.trim(),
             parentNumber: document.getElementById('m-pphone').value.replace(/[^\d+]/g, ''),
-            category: document.getElementById('m-cat').value
+            category: isHifz ? document.getElementById('m-cat').value : null
           });
           if (!st2.name) { toast(I18N.get() === 'ur' ? 'نام درج کریں' : 'Enter a name'); return; }
           DB.saveStudent(st2).then(function () {
@@ -2241,20 +2253,20 @@
   }
 
   /* ---------- WEEKLY report ---------- */
-  function weekOfMonday(ds) {
+  function weekStartOf(ds) {
     const parts = ds.split('-').map(Number);
     const d = new Date(parts[0], parts[1] - 1, parts[2]);
     const day = d.getDay();
-    const diff = day === 0 ? 6 : day - 1;
+    const diff = (day + 2) % 7; // days since Friday (Fri=5 → diff=0)
     d.setDate(d.getDate() - diff);
     return dstr(d);
   }
 
-  function lastNMondays(n) {
+  function lastNWeekStarts(n) {
     const out = [];
     const today = new Date();
-    const thisMonday = weekOfMonday(todayDs());
-    const parts = thisMonday.split('-').map(Number);
+    const thisStart = weekStartOf(todayDs());
+    const parts = thisStart.split('-').map(Number);
     for (let i = n - 1; i >= 0; i--) {
       const d = new Date(parts[0], parts[1] - 1, parts[2] - 7 * i);
       out.push(dstr(d));
@@ -2262,8 +2274,8 @@
     return out;
   }
 
-  function weekLabel(mondayDs) {
-    const parts = mondayDs.split('-').map(Number);
+  function weekLabel(friDs) {
+    const parts = friDs.split('-').map(Number);
     const start = new Date(parts[0], parts[1] - 1, parts[2]);
     const end = new Date(parts[0], parts[1] - 1, parts[2] + 6);
     return monthLabel(start.getFullYear(), start.getMonth() + 1) + ' ' + start.getDate() + ' – ' +
@@ -2278,10 +2290,10 @@
     const isPrincipal = session.role === 'principal';
     if (!isQari && !isPrincipal) { redirect('dashboard'); return; }
 
-    const mondays = lastNMondays(6);
-    let wk = weekOfMonday(todayDs());
+    const weekStarts = lastNWeekStarts(6);
+    let wk = weekStartOf(todayDs());
     const { q } = parseHash();
-    if (q && q.wk && mondays.indexOf(q.wk) >= 0) wk = q.wk;
+    if (q && q.wk && weekStarts.indexOf(q.wk) >= 0) wk = q.wk;
 
     const auto = { newSafa: 0, sabaqDays: 0 };
     const weekReps = await DB.getReportRange(sid, wk, DB.addDays(wk, 6));
@@ -2314,7 +2326,7 @@
         '<p style="color:var(--ink-soft);font-size:.88rem;margin-top:6px">' + t('weeklySub') + '</p>' +
         '<div class="field" style="margin-top:10px"><label>' + t('weekOf') + '</label>' +
           '<select id="w-week" data-change="w-week">' +
-            mondays.map(function (m) {
+            weekStarts.map(function (m) {
               return '<option value="' + m + '"' + (m === wk ? ' selected' : '') + '>' + weekLabel(m) + '</option>';
             }).join('') +
           '</select></div>' +
@@ -2505,7 +2517,6 @@
     const students = await DB.getStudents(session.classId);
     const today = todayDs();
     const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), today);
-    const manzilOpts = [['half', t('halfPara')], ['third', t('thirdPara')], ['full', t('fullPara')]];
     const trackOf = function (s) { return s.type || cls.type || 'hifz'; };
     const savedIds = new Set(students.filter(function (s) { return dayReps[s.id]; }).map(function (s) { return s.id; }));
     const state = {};
@@ -2515,7 +2526,7 @@
         present: r.present !== undefined ? r.present : true,
         sabqiDone: !!r.sabqiDone,
         manzilDone: !!r.manzilDone,
-        manzil: r.manzil || 'half',
+        manzil: manzilDisplay(r.manzil),
         pages: r.pages || 0,
         lines: r.lines || 0,
         manzilPages: r.manzilPages || 0,
@@ -2536,8 +2547,8 @@
       };
       let out = '';
       out += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
-        '<div class="field"><label for="qe-pages-' + s.id + '">' + t('sabaq') + ' — ' + t('pages') + '</label>' +
-          '<select id="qe-pages-' + s.id + '" data-qe="pages" data-sid="' + s.id + '">' + rangeOpts(10, st.pages) + '</select></div>' +
+        '<div class="field"><label for="qe-pages-' + s.id + '">' + t('sabaq') + ' — ' + (track === 'qaida' ? t('lessonNo') : t('pages')) + '</label>' +
+          '<select id="qe-pages-' + s.id + '" data-qe="pages" data-sid="' + s.id + '">' + rangeOpts(track === 'qaida' ? 17 : 10, st.pages) + '</select></div>' +
         '<div class="field"><label for="qe-lines-' + s.id + '">' + t('lines') + '</label>' +
           '<select id="qe-lines-' + s.id + '" data-qe="lines" data-sid="' + s.id + '">' + rangeOpts(20, st.lines) + '</select></div>' +
       '</div>';
@@ -2547,10 +2558,9 @@
       out += '</div>';
       if (track !== 'qaida') {
         if (manzilIsTri) {
-          out += '<div class="seg tri"' + (st.manzilDone ? ' style="margin-top:8px"' : ' style="margin-top:8px;display:none"') + ' id="qe-trim-' + s.id + '">' +
-            manzilOpts.map(function (o) {
-              return '<button type="button" class="opt' + (st.manzil === o[0] ? ' on' : '') + '" data-action="qe-manzil" data-sid="' + s.id + '" data-v="' + o[0] + '">' + o[1] + '</button>';
-            }).join('') +
+          out += '<div style="margin-top:8px"' + (st.manzilDone ? '' : ' style="display:none;margin-top:8px"') + ' id="qe-trim-' + s.id + '">' +
+            '<div class="field"><label for="qe-mzsel-' + s.id + '">' + t('manzil') + ' — ' + t('para') + '</label>' +
+              '<select id="qe-mzsel-' + s.id + '" data-qe="manzil" data-sid="' + s.id + '">' + manzilOptsHtml(st.manzil) + '</select></div>' +
           '</div>';
         } else {
           out += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px"' + (st.manzilDone ? '' : ' style="display:none;margin-top:8px"') + ' id="qe-trim-' + s.id + '">' +
@@ -2596,7 +2606,7 @@
             '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
               '<div>' +
                 '<div style="font-weight:700">' + nameDisplay(s.name) + '</div>' +
-                '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
+'<div class="meta">' + (trackOf(s) === 'qaida' ? t('lessonNo') + ' ' + num(s.para) : t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—')) + '</div>' +
               '</div>' +
               '<div class="seg">' +
                 '<button type="button" class="opt present' + (st(s.id).present ? ' on' : '') + '" data-action="qe-present" data-sid="' + s.id + '" data-v="1">' + t('present') + '</button>' +
@@ -2654,18 +2664,20 @@
     /* keep DOM widgets in sync with state so a present/absent toggle never loses data */
     function wireWidgets() {
       students.forEach(function (s) {
-        const ids = ['qe-pages-' + s.id, 'qe-lines-' + s.id, 'qe-mpages-' + s.id, 'qe-mlines-' + s.id, 'qe-comment-' + s.id];
+        const ids = ['qe-pages-' + s.id, 'qe-lines-' + s.id, 'qe-mpages-' + s.id, 'qe-mlines-' + s.id, 'qe-mzsel-' + s.id, 'qe-comment-' + s.id];
         ids.forEach(function (id) {
           const el = document.getElementById(id);
           if (el) {
             el.addEventListener('input', function () {
               if (id.indexOf('comment') > -1) state[s.id].comment = el.value;
+              else if (id.indexOf('mzsel') > -1) state[s.id].manzil = el.value;
               else if (id.indexOf('mpages') > -1) state[s.id].manzilPages = parseInt(el.value, 10) || 0;
               else if (id.indexOf('mlines') > -1) state[s.id].manzilLines = parseInt(el.value, 10) || 0;
               else state[s.id][id.indexOf('pages') > -1 ? 'pages' : 'lines'] = parseInt(el.value, 10) || 0;
             });
             el.addEventListener('change', function () {
               if (id.indexOf('comment') > -1) state[s.id].comment = el.value;
+              else if (id.indexOf('mzsel') > -1) state[s.id].manzil = el.value;
               else if (id.indexOf('mpages') > -1) state[s.id].manzilPages = parseInt(el.value, 10) || 0;
               else if (id.indexOf('mlines') > -1) state[s.id].manzilLines = parseInt(el.value, 10) || 0;
               else state[s.id][id.indexOf('pages') > -1 ? 'pages' : 'lines'] = parseInt(el.value, 10) || 0;
@@ -2695,16 +2707,6 @@
       }
       const body = document.getElementById('qe-body-' + sid);
       if (body) body.style.display = state[sid].present ? '' : 'none';
-    };
-    viewActions['qe-manzil'] = function (btn) {
-      const sid = btn.getAttribute('data-sid');
-      state[sid].manzil = btn.getAttribute('data-v');
-      const tri = document.getElementById('qe-trim-' + sid);
-      if (tri) {
-        tri.querySelectorAll('[data-action="qe-manzil"]').forEach(function (b) {
-          b.classList.toggle('on', b === btn);
-        });
-      }
     };
     viewActions['qe-save-all'] = function () {
       const today2 = todayDs();
@@ -2813,11 +2815,7 @@
   /* ---------- EXPORTS ---------- */
   function manzilEn(rep, manzilIsTri) {
     if (!rep.manzilDone) return 'Not done';
-    if (manzilIsTri) {
-      if (rep.manzil === 'half') return 'Half para';
-      if (rep.manzil === 'third') return 'One-third para';
-      return 'Full para';
-    }
+    if (manzilIsTri) return manzilDisplay(rep.manzil);
     const parts = [];
     if (rep.manzilPages) parts.push(rep.manzilPages + 'p');
     if (rep.manzilLines) parts.push(rep.manzilLines + 'l');

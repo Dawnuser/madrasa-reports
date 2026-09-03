@@ -124,7 +124,7 @@ const DB = (function () {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   }
 
-  const CATEGORIES = { A: '10', B: '20', C: '30', D: '40' };
+  const CATEGORIES = { A: '10', B: '20', C: '30', D: '40', E: '60' };
 
   /* ---------- public API ---------- */
   const api = {

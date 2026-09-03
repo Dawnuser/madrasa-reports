@@ -259,6 +259,11 @@ img { max-width: 100%; }
   gap: 10px;
   margin: 16px 0;
 }
+.dash-sub-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
 .btn-danger {
   background: transparent; color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent);
 }

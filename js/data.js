@@ -56,7 +56,10 @@ const DB = (function () {
       type: r.type || null,
       shift: r.shift || null,
       inviteCode: r.invite_code || null,
-      parentId: r.parent_id || null
+      parentId: r.parent_id || null,
+      fromStart: r.from_start,
+      fromEnd: r.from_end,
+      testsPassed: r.tests_passed || 0
     };
   }
   function unmapStudent(st) {
@@ -69,7 +72,10 @@ const DB = (function () {
       full_time: st.fullTime,
       parent_name: st.parentName,
       parent_number: st.parentNumber,
-      category: st.category
+      category: st.category,
+      from_start: st.fromStart,
+      from_end: st.fromEnd,
+      tests_passed: st.testsPassed || 0
     };
     if (st.type) o.type = st.type;
     if (st.shift) o.shift = st.shift;
@@ -84,9 +90,11 @@ const DB = (function () {
       sabqiDone: r.sabqi_done,
       manzilDone: r.manzil_done,
       manzil: r.manzil,
+      manzilPara: r.manzil_para,
       manzilPages: r.manzil_pages,
       manzilLines: r.manzil_lines,
-      comment: r.comment
+      comment: r.comment,
+      reason: r.reason
     };
   }
   function unmapReport(rep) {
@@ -98,13 +106,26 @@ const DB = (function () {
       sabqi_done: rep.sabqiDone,
       manzil_done: rep.manzilDone,
       manzil: rep.manzil,
+      manzil_para: rep.manzilPara,
       manzil_pages: rep.manzilPages,
       manzil_lines: rep.manzilLines,
-      comment: rep.comment
+      comment: rep.comment,
+      reason: rep.reason
     };
   }
   function mapClass(r) {
     return { id: r.id, name: r.name, qariId: null, type: r.type || null };
+  }
+  function mapHafiz(r) {
+    return {
+      id: r.id,
+      name: r.name,
+      graduationYear: r.graduation_year,
+      parentName: r.parent_name,
+      parentNumber: r.parent_number,
+      completedUnder: r.completed_under,
+      notes: r.notes
+    };
   }
 
   /* ---------- date helpers ---------- */
@@ -347,6 +368,36 @@ const DB = (function () {
       }
       await api.pushTrash({ kind: 'student', payload: { st: st, reports: reports, weekly: weekly, monthly: monthly, fees: fees } });
       await c.from('students').delete().eq('id', id);
+      return { ok: true };
+    },
+
+    /* huffaz (graduated Hafiz students — principal only, no class) */
+    async getHuffaz() {
+      const c = client();
+      const { data } = await c.from('huffaz').select('*').order('name');
+      return (data || []).map(mapHafiz);
+    },
+    async saveHafiz(h) {
+      const c = client();
+      const row = {
+        name: h.name,
+        graduation_year: h.graduationYear,
+        parent_name: h.parentName,
+        parent_number: h.parentNumber,
+        completed_under: h.completedUnder,
+        notes: h.notes
+      };
+      if (h.id) {
+        const { data } = await c.from('huffaz').update(row).eq('id', h.id).select().single();
+        return data ? mapHafiz(data) : h;
+      } else {
+        const { data } = await c.from('huffaz').insert(row).select().single();
+        return data ? mapHafiz(data) : h;
+      }
+    },
+    async deleteHafiz(id) {
+      const c = client();
+      await c.from('huffaz').delete().eq('id', id);
       return { ok: true };
     },
 
@@ -659,7 +710,7 @@ const DB = (function () {
         const { data: moRows } = await client().from('monthly_reports').select('*').in('student_id', ids);
         (moRows || []).forEach(function (r) { monthly[r.student_id + '|' + r.ym] = r.data; });
       }
-      return { classes: classes, users: users, students: students, reports: reports, fees: fees, weekly: weekly, monthly: monthly, trash: await api.getTrashRaw() };
+      return { classes: classes, users: users, students: students, reports: reports, fees: fees, weekly: weekly, monthly: monthly, trash: await api.getTrashRaw(), huffaz: (await client().from('huffaz').select('*')).data || [] };
     },
 
     /* full restore (import) — inserts into supabase */
@@ -705,6 +756,12 @@ const DB = (function () {
         const { data: ex } = await c.from('trash').select('tid').eq('tid', t.tid);
         if (ex && ex.length) continue;
         await c.from('trash').insert({ tid: t.tid, kind: t.kind, payload: t.payload, deleted_at: t.deleted_at || undefined });
+      }
+      for (const h of (data.huffaz || [])) {
+        if (!h.id) continue;
+        const { data: ex } = await c.from('huffaz').select('id').eq('id', h.id);
+        if (ex && ex.length) continue;
+        await c.from('huffaz').insert({ id: h.id, name: h.name, graduation_year: h.graduation_year || null, parent_name: h.parent_name || null, parent_number: h.parent_number || null, completed_under: h.completed_under || null, notes: h.notes || null });
       }
       return { ok: true };
     },

@@ -78,7 +78,7 @@ const DB = (function () {
       tests_passed: st.testsPassed || 0
     };
     if (st.type) o.type = st.type;
-    if (st.shift) o.shift = st.shift;
+    o.shift = st.shift || null;
     return o;
   }
   function mapReport(r) {

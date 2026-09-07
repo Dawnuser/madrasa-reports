@@ -1899,7 +1899,7 @@ const DB = (function () {
       tests_passed: st.testsPassed || 0
     };
     if (st.type) o.type = st.type;
-    if (st.shift) o.shift = st.shift;
+    o.shift = st.shift || null;
     return o;
   }
   function mapReport(r) {
@@ -2754,6 +2754,7 @@ const DB = (function () {
   /* ---------- action registries (replaced on every render → no stacking) ---------- */
   let viewActions = {};
   let changeActions = {};
+  var collapsedShifts = {};
 
   document.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-action]');
@@ -4303,7 +4304,6 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           '<div class="field"><label>' + t('graduationYear') + '</label><input id="h-year" type="number" min="2000" max="2100" value="' + (h.graduationYear != null ? h.graduationYear : '') + '"></div>' +
           '<div class="field"><label>' + t('parentName') + '</label><input id="h-pname" value="' + esc(h.parentName || '') + '"></div>' +
           '<div class="field"><label>' + t('parentNumber') + '</label><input id="h-pphone" type="tel" value="' + esc(h.parentNumber || '') + '"></div>' +
-          '<div class="field"><label>' + t('completedUnder') + '</label><input id="h-under" value="' + esc(h.completedUnder || '') + '"></div>' +
           '<div class="field"><label>' + t('notes') + '</label><textarea id="h-notes" rows="2">' + esc(h.notes || '') + '</textarea></div>' +
           '<div style="display:flex;gap:10px">' +
             '<button class="btn btn-primary btn-block" data-action="h-save">' + t('saveOk') + '</button>' +
@@ -4328,7 +4328,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
             graduationYear: yrRaw === '' ? null : (parseInt(yrRaw, 10) || null),
             parentName: document.getElementById('h-pname').value.trim(),
             parentNumber: document.getElementById('h-pphone').value.replace(/[^\d+]/g, ''),
-            completedUnder: document.getElementById('h-under').value.trim(),
+            completedUnder: h.completedUnder || '',
             notes: document.getElementById('h-notes').value.trim()
           }).then(function () {
             b.remove();
@@ -4434,21 +4434,32 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         var grp = list.filter(function (s) { return (s.shift || '') === sh.key; });
         if (!grp.length) return;
         out += '<div class="shift-group">' +
-               '<div class="shift-header">🕗 ' + sh.label + ' <span class="badge">' + grp.length + ' ' + t('shiftStudents') + '</span></div>' +
+               '<div class="shift-header" data-action="toggle-shift" data-shift="' + sh.key + '" style="cursor:pointer"><span class="shift-arrow">' + (collapsedShifts[sh.key] ? '▸' : '▾') + '</span> 🕗 ' + sh.label + ' <span class="badge">' + grp.length + ' ' + t('shiftStudents') + '</span></div>' +
+               '<div class="shift-body" id="shift-body-' + sh.key + '"' + (collapsedShifts[sh.key] ? ' style="display:none"' : '') + '>' +
                grp.map(studentRow).join('') +
-               '</div>';
+               '</div></div>';
       });
       var unassigned = list.filter(function (s) {
         return !s.shift;
       });
       if (unassigned.length) {
         out += '<div class="shift-group">' +
-               '<div class="shift-header">— ' + t('shiftNone') + ' <span class="badge">' + unassigned.length + ' ' + t('shiftStudents') + '</span></div>' +
+               '<div class="shift-header" data-action="toggle-shift" data-shift="un" style="cursor:pointer"><span class="shift-arrow">' + (collapsedShifts['un'] ? '▸' : '▾') + '</span> — ' + t('shiftNone') + ' <span class="badge">' + unassigned.length + ' ' + t('shiftStudents') + '</span></div>' +
+               '<div class="shift-body" id="shift-body-un"' + (collapsedShifts['un'] ? ' style="display:none"' : '') + '>' +
                unassigned.map(studentRow).join('') +
-               '</div>';
+               '</div></div>';
       }
       return out;
     }
+
+    viewActions['toggle-shift'] = function (btn) {
+      const key = btn.getAttribute('data-shift');
+      collapsedShifts[key] = !collapsedShifts[key];
+      const body = document.getElementById('shift-body-' + key);
+      if (body) body.style.display = collapsedShifts[key] ? 'none' : '';
+      const arrow = btn.querySelector('.shift-arrow');
+      if (arrow) arrow.textContent = collapsedShifts[key] ? '▸' : '▾';
+    };
 
     function studentRow(s) {
       var ty = s.type || cls.type || 'hifz';
@@ -5469,21 +5480,32 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         var grp = students.filter(function (s) { return (s.shift || '') === sh.key; });
         if (!grp.length) return;
         out += '<div class="shift-group" data-shift="' + sh.key + '">' +
-               '<div class="shift-header">🕗 ' + sh.label + ' <span class="badge">' + grp.length + ' ' + t('shiftStudents') + '</span>' +
+               '<div class="shift-header" data-action="toggle-shift" data-shift="' + sh.key + '" style="cursor:pointer"><span class="shift-arrow">' + (collapsedShifts[sh.key] ? '▸' : '▾') + '</span> 🕗 ' + sh.label + ' <span class="badge">' + grp.length + ' ' + t('shiftStudents') + '</span>' +
                ' <span class="shift-done-badge">' + shiftStatusBadge(sh.key) + '</span></div>' +
+               '<div class="shift-body" id="shift-body-' + sh.key + '"' + (collapsedShifts[sh.key] ? ' style="display:none"' : '') + '>' +
                grp.map(cardFor).join('') +
-               '</div>';
+               '</div></div>';
       });
       var unassigned = students.filter(function (s) { return !s.shift; });
       if (unassigned.length) {
         out += '<div class="shift-group" data-shift="un">' +
-               '<div class="shift-header">— ' + t('shiftNone') + ' <span class="badge">' + unassigned.length + ' ' + t('shiftStudents') + '</span>' +
+               '<div class="shift-header" data-action="toggle-shift" data-shift="un" style="cursor:pointer"><span class="shift-arrow">' + (collapsedShifts['un'] ? '▸' : '▾') + '</span> — ' + t('shiftNone') + ' <span class="badge">' + unassigned.length + ' ' + t('shiftStudents') + '</span>' +
                ' <span class="shift-done-badge">' + shiftStatusBadge('un') + '</span></div>' +
+               '<div class="shift-body" id="shift-body-un"' + (collapsedShifts['un'] ? ' style="display:none"' : '') + '>' +
                unassigned.map(cardFor).join('') +
-               '</div>';
+               '</div></div>';
       }
       return out;
     }
+
+    viewActions['toggle-shift'] = function (btn) {
+      const key = btn.getAttribute('data-shift');
+      collapsedShifts[key] = !collapsedShifts[key];
+      const body = document.getElementById('shift-body-' + key);
+      if (body) body.style.display = collapsedShifts[key] ? 'none' : '';
+      const arrow = btn.querySelector('.shift-arrow');
+      if (arrow) arrow.textContent = collapsedShifts[key] ? '▸' : '▾';
+    };
 
     function shiftStatusBadge(key) {
       var ids = key === 'un'

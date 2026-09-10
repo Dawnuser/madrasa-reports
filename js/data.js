@@ -94,7 +94,9 @@ const DB = (function () {
       manzilPages: r.manzil_pages,
       manzilLines: r.manzil_lines,
       comment: r.comment,
-      reason: r.reason
+      reason: r.reason,
+      late: !!r.late,
+      testDone: !!r.test_done
     };
   }
   function unmapReport(rep) {
@@ -110,7 +112,9 @@ const DB = (function () {
       manzil_pages: rep.manzilPages,
       manzil_lines: rep.manzilLines,
       comment: rep.comment,
-      reason: rep.reason
+      reason: rep.reason,
+      late: !!rep.late,
+      test_done: !!rep.testDone
     };
   }
   function mapClass(r) {

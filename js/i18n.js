@@ -310,7 +310,11 @@ trash: 'Archive',
       tests: 'Tests',
       testsHint: 'Principal ticks each 5-para test as the student passes, in order.',
       testOrderErr: 'Pass the previous test first.',
-      testsPassed: 'Tests passed'
+      testsPassed: 'Tests passed',
+      late: 'Late',
+      lateSub: 'Came late today',
+      test: 'Test',
+      testSub: 'Gave a test today'
     },
     ur: {
       appName: 'مدرسہ دار المعارج',
@@ -619,7 +623,11 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       tests: 'ٹیسٹ',
       testsHint: 'پرنسپل ہر 5 پاروں کا ٹیسٹ ترتیب سے پاس ہونے پر ٹک کریں۔',
       testOrderErr: 'پہلے پچھلا ٹیسٹ پاس کریں۔',
-      testsPassed: 'پاس شدہ ٹیسٹ'
+      testsPassed: 'پاس شدہ ٹیسٹ',
+      late: 'دیر سے آیا',
+      lateSub: 'آج دیر سے آیا',
+      test: 'ٹیسٹ',
+      testSub: 'آج ٹیسٹ دیا'
     },
     ar: {
       appName: 'مدرسة دار المعارج',
@@ -928,7 +936,11 @@ trash: 'الأرشيف',
       tests: 'الاختبارات',
       testsHint: 'يضع المدير علامة على كل اختبار كلما اجتازه الطالب بالترتيب.',
       testOrderErr: 'اجتز الاختبار السابق أولاً.',
-      testsPassed: 'اختبارات مجتازة'
+      testsPassed: 'اختبارات مجتازة',
+      late: 'متأخر',
+      lateSub: 'حضر متأخراً اليوم',
+      test: 'اختبار',
+      testSub: 'أدى اختباراً اليوم'
     }
   };
 

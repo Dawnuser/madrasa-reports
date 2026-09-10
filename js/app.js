@@ -647,6 +647,12 @@
     return parts.join('+') || '—';
   }
 
+  /* Late (tilawa/qaida) + Test (hifz) markers appended to a present status */
+  function presentMark(r) {
+    if (!r.present) return '';
+    return (r.late ? ' (' + I18N.t('late') + ' ✓)' : '') + (r.testDone ? ' (' + I18N.t('test') + ' ✓)' : '');
+  }
+
   async function parentOverview(st, classes) {
     const t = I18N.t;
     const cls = classes[st.classId];
@@ -663,7 +669,7 @@
       const r = reps[k];
       return '<tr class="' + (r.present ? '' : 'absent') + '">' +
         '<td>' + fmtDate(k) + '</td>' +
-        '<td>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent')) + '</td>' +
+        '<td>' + (r.present ? '✓ ' + t('present') + presentMark(r) : '✗ ' + t('absent')) + '</td>' +
         '<td>' + parentSabaqCell(r, isQaida) + '</td>' +
         '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
         '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : '—') + '</td>' +
@@ -739,7 +745,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
             return '<tr class="' + (r.present ? '' : 'absent') + '">' +
               '<td class="num">' + num(parseInt(row.ds.slice(8), 10)) + '</td>' +
               '<td>' + fmtDate(row.ds) + '</td>' +
-              '<td>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent')) + '</td>' +
+              '<td>' + (r.present ? '✓ ' + t('present') + presentMark(r) : '✗ ' + t('absent')) + '</td>' +
               '<td>' + parentSabaqCell(r, isQaida) + '</td>' +
               '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
               '<td>' + (r.present ? parentManzilName(r, manzilIsTri) : '—') + '</td>' +
@@ -1006,7 +1012,9 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       manzilPages: r.manzilPages || 0,
       manzilLines: r.manzilLines || 0,
       comment: r.comment || '',
-      reason: !!r.reason
+      reason: !!r.reason,
+      late: !!r.late,
+      testDone: !!r.testDone
     };
   }
 
@@ -1030,11 +1038,15 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     if (cm) draft.comment = cm.value;
     const rsn = g('sw-reason');
     if (rsn) draft.reason = rsn.checked;
+    const lt = g('sw-late');
+    if (lt) draft.late = lt.checked;
+    const tst = g('sw-test');
+    if (tst) draft.testDone = tst.checked;
     saveDraft(draft);
   }
 
   function wireDraftAutosave() {
-    const ids = ['sw-sabaq', 'sw-sabqi', 'sw-manzil', 'f-pages', 'f-lines', 'f-mpages', 'f-mlines', 'f-manzil', 'f-manzil-para', 'f-comment', 'sw-reason'];
+    const ids = ['sw-sabaq', 'sw-sabqi', 'sw-manzil', 'f-pages', 'f-lines', 'f-mpages', 'f-mlines', 'f-manzil', 'f-manzil-para', 'f-comment', 'sw-reason', 'sw-late', 'sw-test'];
     ids.forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1144,6 +1156,15 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
                     '<select id="f-mlines"' + (locked ? ' disabled' : '') + '>' + rangeOpts(20, rep.manzilLines) + '</select></div>' +
                 '</div>' +
               '</div>' : '') +
+            (manzilIsTri ?
+              '<div class="tick-row">' +
+                '<div><div class="lbl">' + t('test') + '</div><div class="sub">' + t('testSub') + '</div></div>' +
+                '<label class="switch"><input type="checkbox" id="sw-test"' + (rep.testDone ? ' checked' : '') + (locked ? ' disabled' : '') + '><span class="track"></span></label>' +
+              '</div>' :
+              '<div class="tick-row">' +
+                '<div><div class="lbl">' + t('late') + '</div><div class="sub">' + t('lateSub') + '</div></div>' +
+                '<label class="switch"><input type="checkbox" id="sw-late"' + (rep.late ? ' checked' : '') + (locked ? ' disabled' : '') + '><span class="track"></span></label>' +
+              '</div>') +
             '<div class="field" style="margin-top:12px">' +
               '<label for="f-comment">' + t('commentForParents') + ' <small style="color:var(--ink-soft)">' + t('commentHint') + '</small></label>' +
               '<textarea id="f-comment" rows="2" placeholder="' + t('commentHint') + '"' + (locked ? ' disabled' : '') + '>' + esc(rep.comment || '') + '</textarea>' +
@@ -1186,6 +1207,11 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           document.getElementById('reveal-manzil').classList.toggle('open', this.checked);
         });
       }
+      if (manzilIsTri) {
+        document.getElementById('sw-test').addEventListener('change', function () { draft.testDone = this.checked; });
+      } else {
+        document.getElementById('sw-late').addEventListener('change', function () { draft.late = this.checked; });
+      }
     }
     wireDraftAutosave();
 
@@ -1208,7 +1234,9 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         manzilPages: draft.present && draft.manzilDone && !manzilIsTri ? (draft.manzilPages || null) : null,
         manzilLines: draft.present && draft.manzilDone && !manzilIsTri ? (draft.manzilLines || null) : null,
         comment: (draft.comment.trim() || null),
-        reason: !draft.present && !!draft.reason
+        reason: !draft.present && !!draft.reason,
+        late: draft.present && !manzilIsTri && !!draft.late,
+        testDone: draft.present && manzilIsTri && !!draft.testDone
       };
       if (rep2.sabaqDone && !rep2.pages && !rep2.lines) {
         toast(I18N.get() === 'ur' ? 'سبق کے لیے صفحات یا سطریں منتخب کریں' : 'Select pages or lines for Sabaq.');
@@ -1368,7 +1396,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
                   '<tr class="' + (r.present ? '' : 'absent') + '"' + (canEdit ? ' style="cursor:pointer" data-row="' + row.ds + '" data-action="row-open"' : '') + '>' +
                     '<td class="num">' + num(parseInt(row.ds.slice(8), 10)) + '</td>' +
                     '<td>' + fmtDate(row.ds) + '</td>' +
-                    '<td>' + (r.present ? '✓ ' + t('present') : '✗ ' + t('absent') + (r.reason ? ' (' + t('excused') + ' ✓)' : '')) + '</td>' +
+                    '<td>' + (r.present ? '✓ ' + t('present') + presentMark(r) : '✗ ' + t('absent') + (r.reason ? ' (' + t('excused') + ' ✓)' : '')) + '</td>' +
                     '<td>' + sabaqCell(r) + '</td>' +
                     '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
                     '<td>' + (r.present ? manzilName(r) : '—') + '</td>' +
@@ -2734,7 +2762,9 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         manzilPages: r.manzilPages || 0,
         manzilLines: r.manzilLines || 0,
         comment: r.comment || '',
-        reason: !!r.reason
+        reason: !!r.reason,
+        late: !!r.late,
+        testDone: !!r.testDone
       };
     });
 
@@ -2749,6 +2779,9 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         '</div>';
       };
       let out = '';
+      out += manzilIsTri
+        ? sw('qe-test-' + s.id, 'testDone', st.testDone, t('test'))
+        : sw('qe-late-' + s.id, 'late', st.late, t('late'));
       out += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
         '<div class="field"><label for="qe-pages-' + s.id + '">' + t('sabaq') + ' — ' + (track === 'qaida' ? t('lessonNo') : t('pages')) + '</label>' +
           '<select id="qe-pages-' + s.id + '" data-qe="pages" data-sid="' + s.id + '">' + rangeOpts(track === 'qaida' ? 17 : 10, st.pages) + '</select></div>' +
@@ -2925,6 +2958,10 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         });
         const rsn = document.getElementById('qe-reason-' + s.id);
         if (rsn) rsn.addEventListener('change', function () { state[s.id].reason = rsn.checked; });
+        const qlate = document.getElementById('qe-late-' + s.id);
+        if (qlate) qlate.addEventListener('change', function () { state[s.id].late = qlate.checked; });
+        const qtest = document.getElementById('qe-test-' + s.id);
+        if (qtest) qtest.addEventListener('change', function () { state[s.id].testDone = qtest.checked; });
       });
     }
     wireWidgets();
@@ -2969,7 +3006,9 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           manzilPages: st2.present && st2.manzilDone && !manzilIsTri ? (st2.manzilPages > 0 ? st2.manzilPages : null) : null,
           manzilLines: st2.present && st2.manzilDone && !manzilIsTri ? (st2.manzilLines > 0 ? st2.manzilLines : null) : null,
           comment: st2.comment.trim() ? st2.comment.trim() : null,
-          reason: !st2.present && !!st2.reason
+          reason: !st2.present && !!st2.reason,
+          late: st2.present && !manzilIsTri && !!st2.late,
+          testDone: st2.present && manzilIsTri && !!st2.testDone
         };
         return DB.saveReport(s.id, today2, rep);
       });
@@ -3058,6 +3097,13 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
   }
 
   /* ---------- EXPORTS ---------- */
+  function presentEn(r) {
+    if (!r.present) return 'Absent';
+    if (r.late) return 'Present (Late)';
+    if (r.testDone) return 'Present (Test)';
+    return 'Present';
+  }
+
   function manzilEn(rep, manzilIsTri) {
     if (!rep.manzilDone) return 'Not done';
     if (manzilIsTri) return (rep.manzilPara ? 'Para ' + rep.manzilPara + ' · ' : '') + manzilDisplay(rep.manzil);
@@ -3099,7 +3145,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         const ds = k.split('|')[1];
         const r = all.reports[k];
         rows.push([nameClean(cls ? cls.name : ''), nameClean(s.name), s.para, s.currentPage || '', s.fullTime ? 'Full Time' : 'Part Time', shiftEn(s.shift), s.category, s.parentName, s.parentNumber, ds,
-          r.present ? 'Present' : 'Absent', r.pages || '', r.lines || '',
+          presentEn(r), r.pages || '', r.lines || '',
           r.present ? (r.sabqiDone ? 'Done' : 'Not done') : '',
           r.present ? manzilEn(r, manzilIsTri) : '',
           !manzilIsTri && r.present ? (r.manzilPages || '') : '',
@@ -3155,7 +3201,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         if (k.indexOf(s.id + '|') !== 0) return;
         const ds = k.split('|')[1];
         const r = all.reports[k];
-        rows += '<tr><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td><td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
+        rows += '<tr><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td><td>' + presentEn(r) + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
       });
@@ -3175,7 +3221,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         const ds = k.split('|')[1];
         const r = all.reports[k];
         rows += '<tr><td>' + nameDisplay(cls ? cls.name : '') + '</td><td>' + nameDisplay(s.name) + (s.shift ? ' <span class="sh">(' + shiftEn(s.shift) + ')</span>' : '') + '</td><td>' + ds + '</td>' +
-'<td>' + (r.present ? 'Present' : 'Absent') + '</td>' +
+'<td>' + presentEn(r) + '</td>' +
           '<td>' + (r.pages || '') + (r.lines ? '+' + r.lines : '') + '</td>' +
           '<td>' + (r.sabqiDone ? '✓' : '') + '</td><td>' + manzilEn(r, manzilIsTri) + '</td></tr>';
       });
@@ -3211,7 +3257,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       const r = x.r;
       repRows += '<tr>' +
         '<td>' + x.ds + '</td>' +
-        '<td>' + (r.present ? 'Present' : 'Absent' + (r.reason ? ' (Excused)' : '')) + '</td>' +
+        '<td>' + (r.present ? presentEn(r) : 'Absent' + (r.reason ? ' (Excused)' : '')) + '</td>' +
         '<td>' + (r.present && r.sabaqDone ? (r.pages ? r.pages + 'p' : '') + (r.lines ? '+' + r.lines + 'l' : '') : '—') + '</td>' +
         '<td>' + (r.present ? (r.sabqiDone ? '✓' : '—') : '—') + '</td>' +
         '<td>' + (r.present ? (r.manzilDone ? manzilEn(r, manzilIsTri) : '—') : '—') + '</td>' +

@@ -81,6 +81,27 @@ const DB = (function () {
     o.shift = st.shift || null;
     return o;
   }
+  /* full row for restore — unmapStudent deliberately omits invite_code
+     + parent_id (managed server-side / FK-sensitive), so restores use this. */
+  function unmapStudentFull(st) {
+    const o = unmapStudent(st);
+    if (st.inviteCode) o.invite_code = st.inviteCode;
+    if (st.parentId) o.parent_id = st.parentId;
+    return o;
+  }
+  /* import variant — keeps invite_code but NOT parent_id: the target DB's
+     auth.users may not contain that id (FK violation would abort import). */
+  function unmapStudentImport(st) {
+    const o = unmapStudent(st);
+    if (st.inviteCode) o.invite_code = st.inviteCode;
+    return o;
+  }
+  function genInviteCode() {
+    const hex = '0123456789ABCDEF';
+    let s = '';
+    for (let i = 0; i < 8; i++) s += hex[Math.floor(Math.random() * 16)];
+    return s;
+  }
   function mapReport(r) {
     return {
       present: r.present,
@@ -276,6 +297,7 @@ const DB = (function () {
       const c = client();
       const cls = await api.getClass(id);
       if (!cls) return { ok: false };
+      const { data: rawCls } = await c.from('classes').select('*').eq('id', id).maybeSingle();
       const { data: studs } = await c.from('students').select('*').eq('class_id', id);
       const students = (studs || []).map(mapStudent);
       const studentIds = students.map(function (s) { return s.id; });
@@ -298,7 +320,10 @@ const DB = (function () {
       }
       await api.pushTrash({
         kind: 'class',
-        payload: { cls: { id: id, name: cls.name }, students: students, reports: reports, weekly: weekly, monthly: monthly, fees: fees }
+        /* snapshot everything restore needs: type/category/qari_name are NOT
+           in the mapped class, so read the raw row (old payloads without
+           these keys still restore — fallbacks live in restoreTrashItem). */
+        payload: { cls: { id: id, name: cls.name, type: (rawCls && rawCls.type) || cls.type || null, category: (rawCls && rawCls.category) || 'A', qari_name: (rawCls && rawCls.qari_name) || cls.name }, students: students, reports: reports, weekly: weekly, monthly: monthly, fees: fees }
       });
       await c.from('classes').delete().eq('id', id);
       return { ok: true };
@@ -345,7 +370,12 @@ const DB = (function () {
         }
         return data ? mapStudent(data) : st;
       } else {
-        const { data, error } = await c.from('students').insert(unmapStudent(st)).select().single();
+        /* new students never got an invite_code (only the one-off migration
+           backfilled existing rows) → parents could never link them.
+           Mint one here so every student is linkable from birth. */
+        const row = unmapStudent(st);
+        if (!row.invite_code) row.invite_code = genInviteCode();
+        const { data, error } = await c.from('students').insert(row).select().single();
         const created = data ? mapStudent(data) : st;
         await c.from('fee_settings').insert({ student_id: created.id, amount: defaultFee(created) });
         return created;
@@ -508,11 +538,11 @@ const DB = (function () {
       if (row.kind === 'class') {
         const { data: existing } = await c.from('classes').select('id').eq('id', p.cls.id);
         if (existing && existing.length) return { ok: false, error: 'exists' };
-        await c.from('classes').insert({ id: p.cls.id, name: p.cls.name, qari_name: p.cls.name });
+        await c.from('classes').insert({ id: p.cls.id, name: p.cls.name, qari_name: p.cls.qari_name || p.cls.name, type: p.cls.type || null, category: p.cls.category || 'A' });
         for (const s of p.students) {
           const { data: ex } = await c.from('students').select('id').eq('id', s.id);
           if (ex && ex.length) continue;
-          await c.from('students').insert(Object.assign({ id: s.id }, unmapStudent(s)));
+          await c.from('students').insert(Object.assign({ id: s.id }, unmapStudentFull(s)));
           const savedFee = p.fees && p.fees[s.id];
           await c.from('fee_settings').insert({ student_id: s.id, amount: (savedFee && savedFee.amount != null) ? savedFee.amount : defaultFee(s) });
         }
@@ -538,7 +568,7 @@ const DB = (function () {
       } else {
         const { data: existing } = await c.from('students').select('id').eq('id', p.st.id);
         if (existing && existing.length) return { ok: false, error: 'exists' };
-        await c.from('students').insert(Object.assign({ id: p.st.id }, unmapStudent(p.st)));
+        await c.from('students').insert(Object.assign({ id: p.st.id }, unmapStudentFull(p.st)));
         if (p.fees) await c.from('fee_settings').insert({ student_id: p.st.id, amount: p.fees.amount || defaultFee(p.st) });
         for (const k of Object.keys(p.reports)) {
           const parts = k.split('|');
@@ -728,12 +758,12 @@ const DB = (function () {
       const c = client();
       for (const cls of data.classes) {
         const { data: ex } = await c.from('classes').select('id').eq('id', cls.id);
-        if (!ex || !ex.length) await c.from('classes').insert({ id: cls.id, name: cls.name, qari_name: cls.name });
+        if (!ex || !ex.length) await c.from('classes').insert({ id: cls.id, name: cls.name, qari_name: cls.qari_name || cls.name, type: cls.type || null, category: cls.category || 'A' });
       }
       for (const s of data.students) {
         const { data: ex } = await c.from('students').select('id').eq('id', s.id);
         if (ex && ex.length) continue;
-        await c.from('students').insert(Object.assign({ id: s.id }, unmapStudent(s)));
+        await c.from('students').insert(Object.assign({ id: s.id }, unmapStudentImport(s)));
         const f = data.fees && data.fees[s.id];
         await c.from('fee_settings').insert({ student_id: s.id, amount: f && f.amount != null ? f.amount : defaultFee(s) });
       }

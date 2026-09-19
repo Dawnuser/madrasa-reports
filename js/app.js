@@ -210,8 +210,8 @@
       redirect('login'); return;
     }
 
-    /* parents only see their own portal */
-    if (session.role === 'parent' && seg[0] !== 'parent' && seg[0] !== 'invite' && seg[0] !== 'signup' && seg[0] !== 'profile') {
+    /* parents only see their own portal (+ password change + invite/profile) */
+    if (session.role === 'parent' && seg[0] !== 'parent' && seg[0] !== 'invite' && seg[0] !== 'signup' && seg[0] !== 'profile' && seg[0] !== 'password') {
       redirect('parent');
       return;
     }
@@ -1381,7 +1381,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           '<label>' + t('month') + '</label>' +
           '<select id="f-month" data-change="f-month">' +
             months.map(function (mo) {
-              return '<option value="' + mo.y + '-' + mo.m + '"' + (mo.y === sel.y && mo.m === sel.m ? ' selected' : '') + '>' + monthLabel(mo.y, mo.m) + '</option>';
+              return '<option value="' + ymOf(mo.y, mo.m) + '"' + (mo.y === sel.y && mo.m === sel.m ? ' selected' : '') + '>' + monthLabel(mo.y, mo.m) + '</option>';
             }).join('') +
           '</select>' +
         '</div>' +
@@ -1409,7 +1409,9 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
 
     changeActions['f-month'] = function (el) {
       const parts = el.value.split('-');
-      nav('history/' + sid + '?ym=' + parts[0] + '-' + parts[1]);
+      let mm = parts[1] || '';
+      if (mm.length < 2) mm = '0' + mm; /* tolerate unpadded values (old bookmarks) */
+      nav('history/' + sid + '?ym=' + parts[0] + '-' + mm);
     };
     viewActions['row-open'] = function (btn) {
       if (!canEdit) return;
@@ -1428,7 +1430,20 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     const classes = await DB.getClasses();
     const byClass = await DB.getStudentsByClass(classes.map(function (c) { return c.id; }));
     let totalStudents = 0;
-    Object.keys(byClass).forEach(function (cid) { totalStudents += byClass[cid].length; });
+    const clsById = {};
+    classes.forEach(function (c) { clsById[c.id] = c; });
+    let nHifz = 0, nTilawa = 0, nQaida = 0, nFull = 0, nPart = 0;
+    Object.keys(byClass).forEach(function (cid) {
+      const ct = (clsById[cid] && clsById[cid].type) || 'hifz';
+      (byClass[cid] || []).forEach(function (s) {
+        totalStudents++;
+        const ty = s.type || ct;
+        if (ty === 'tilawa') { nTilawa++; return; }
+        if (ty === 'qaida') { nQaida++; return; }
+        nHifz++;
+        if (s.fullTime) nFull++; else nPart++;
+      });
+    });
 
     app.innerHTML = '' +
       topbar(false) +
@@ -1446,6 +1461,13 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           ]) +
           importButton() +
           '<span class="pill" style="margin-inline-start:auto">' + t('totalStudents') + ': ' + num(totalStudents) + '</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">' +
+          '<span class="pill">' + t('hifz') + ': ' + num(nHifz) + '</span>' +
+          '<span class="pill" style="font-size:.82rem;opacity:.92">' + t('fullTime') + ': ' + num(nFull) + '</span>' +
+          '<span class="pill" style="font-size:.82rem;opacity:.92">' + t('partTime') + ': ' + num(nPart) + '</span>' +
+          '<span class="pill">' + t('tilawa') + ': ' + num(nTilawa) + '</span>' +
+          '<span class="pill">' + t('qaida') + ': ' + num(nQaida) + '</span>' +
         '</div>' +
         '<div style="display:grid;gap:10px;margin-top:18px">' +
           '<a class="class-row" href="#/classes">' +
@@ -1647,6 +1669,8 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     const t = I18N.t;
     if (session.role !== 'principal') { redirect('dashboard'); return; }
     const list = await DB.getHuffaz();
+    /* oldest graduation year first (no year sorts last) */
+    list.sort(function (a, b) { return (a.graduationYear == null ? 9999 : a.graduationYear) - (b.graduationYear == null ? 9999 : b.graduationYear); });
 
     app.innerHTML = '' +
       topbar(true) +
@@ -1670,7 +1694,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
                   '<div style="font-weight:600">' + nameDisplay(h.name) +
                     (h.graduationYear ? ' <span class="badge badge-cat">' + num(h.graduationYear) + '</span>' : '') + '</div>' +
                   '<div class="meta">' + esc(h.parentName || '—') + ' · ' + esc(h.parentNumber || '—') +
-                    (h.completedUnder ? ' · ' + esc(h.completedUnder) : '') + '</div>' +
+                    (h.completedUnder ? ' · ' + esc(h.completedUnder) : '') + (h.notes ? ' · ' + esc(h.notes) : '') + '</div>' +
                 '</div>' +
                 '<div class="row-actions">' +
                   '<button class="icon-mini" data-action="view-hafiz" data-id="' + h.id + '" title="' + t('view') + '">👁</button>' +
@@ -1690,10 +1714,10 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         '<div class="modal">' +
           '<h3>' + (isEdit ? t('editHafiz') : t('addHafiz')) + '</h3>' +
           '<div class="field"><label>' + t('name') + '</label><input id="h-name" value="' + esc(h.name || '') + '"></div>' +
-          '<div class="field"><label>' + t('graduationYear') + '</label><input id="h-year" type="number" min="2000" max="2100" value="' + (h.graduationYear != null ? h.graduationYear : '') + '"></div>' +
           '<div class="field"><label>' + t('parentName') + '</label><input id="h-pname" value="' + esc(h.parentName || '') + '"></div>' +
           '<div class="field"><label>' + t('parentNumber') + '</label><input id="h-pphone" type="tel" value="' + esc(h.parentNumber || '') + '"></div>' +
-          '<div class="field"><label>' + t('notes') + '</label><textarea id="h-notes" rows="2">' + esc(h.notes || '') + '</textarea></div>' +
+          '<div class="field"><label>' + t('graduationYear') + '</label><input id="h-year" type="number" min="2000" max="2100" value="' + (h.graduationYear != null ? h.graduationYear : '') + '"></div>' +
+          '<div class="field"><label>' + t('address') + '</label><input id="h-notes" value="' + esc(h.notes || '') + '"></div>' +
           '<div style="display:flex;gap:10px">' +
             '<button class="btn btn-primary btn-block" data-action="h-save">' + t('saveOk') + '</button>' +
             '<button class="btn btn-ghost" data-action="h-cancel">' + t('cancel') + '</button>' +
@@ -1736,11 +1760,11 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       b.innerHTML =
         '<div class="modal">' +
           '<h3>🎓 ' + nameDisplay(h.name) + '</h3>' +
-          row(t('graduationYear'), h.graduationYear != null ? String(h.graduationYear) : '') +
           row(t('parentName'), h.parentName) +
           row(t('parentNumber'), h.parentNumber) +
+          row(t('graduationYear'), h.graduationYear != null ? String(h.graduationYear) : '') +
+          row(t('address'), h.notes) +
           row(t('completedUnder'), h.completedUnder) +
-          row(t('notes'), h.notes) +
           '<div style="display:flex;justify-content:flex-end;margin-top:12px">' +
             '<button class="btn btn-ghost" data-action="h-close">' + t('close') + '</button>' +
           '</div>' +
@@ -1769,9 +1793,9 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       DB.deleteHafiz(h.id).then(function () { renderHuffaz(session); });
     };
     viewActions['export-huffaz'] = function () {
-      const head = ['Name', 'Graduation Year', 'Parent Name', 'Parent Number', 'Completed Under', 'Notes'];
+      const head = ['Name', 'Parent Name', 'Parent Number', 'Graduation Year', 'Completed Under', 'Address'];
       const rows = list.map(function (h) {
-        return [nameClean(h.name), h.graduationYear != null ? h.graduationYear : '', h.parentName || '', h.parentNumber || '', h.completedUnder || '', h.notes || ''].map(csvCell).join(',');
+        return [nameClean(h.name), h.parentName || '', h.parentNumber || '', h.graduationYear != null ? h.graduationYear : '', h.completedUnder || '', h.notes || ''].map(csvCell).join(',');
       });
       download('madrasa-huffaz.csv', '﻿' + head.map(csvCell).join(',') + '\n' + rows.join('\n'));
       toast(t('exportExcel'));
@@ -1801,6 +1825,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
             { action: 'export-excel-class', label: '⬇ ' + t('exportExcel') },
             { action: 'export-pdf-class', label: '⬇ ' + t('exportPdf') }
           ]) +
+          (cls.type === 'hifz' ? '<span style="flex:1"></span><span class="pill">' + t('fullTime') + ': ' + num(students.filter(function (x) { return x.fullTime; }).length) + '</span><span class="pill">' + t('partTime') + ': ' + num(students.filter(function (x) { return !x.fullTime; }).length) + '</span>' : '') +
         '</div>' +
         '<div class="section-title">' + t('students') + '</div>' +
         (students.length === 0 ?
@@ -2105,7 +2130,8 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       return f.payments && f.payments[ym];
     };
     let paidCount = 0;
-    students.forEach(function (s) { if (payStatus(s.id) && payStatus(s.id).paid) paidCount++; });
+    const paidBy = {};
+    students.forEach(function (s) { const isPaid = !!(payStatus(s.id) && payStatus(s.id).paid); paidBy[s.id] = isPaid; if (isPaid) paidCount++; });
 
     app.innerHTML = '' +
       topbar(true) +
@@ -2156,11 +2182,14 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       DB.markFee(sid, ym, paid, session.id).then(function (res) {
         if (res && res.ok === false) { toast(t('saveFailed')); return; }
         paintFeeBtns(row, paid, t);
-        paidCount += paid ? 1 : -1;
-        const pc = document.getElementById('paid-count');
-        const uc = document.getElementById('unpaid-count');
-        pc.textContent = num(paidCount);
-        uc.textContent = num(students.length - paidCount);
+        if (paidBy[sid] !== paid) { /* re-tapping the current state must not drift the counters */
+          paidBy[sid] = paid;
+          paidCount += paid ? 1 : -1;
+          const pc = document.getElementById('paid-count');
+          const uc = document.getElementById('unpaid-count');
+          pc.textContent = num(paidCount);
+          uc.textContent = num(students.length - paidCount);
+        }
         toast(paid ? t('markPaid') : t('markUnpaid'));
       });
     };
@@ -3042,34 +3071,47 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     const today = todayDs();
     const monthReps = await DB.getMonthReportsForStudents(students.map(function (s) { return s.id; }), sel.y, sel.m);
 
+    /* elapsed days of the viewed month: today for the current month, full length for past months */
+    const nowParts = today.split('-');
+    const nowY = +nowParts[0], nowM = +nowParts[1], nowD = +nowParts[2];
+    const dim = new Date(sel.y, sel.m, 0).getDate();
+    const elapsed = (sel.y === nowY && sel.m === nowM) ? nowD : ((sel.y < nowY || (sel.y === nowY && sel.m < nowM)) ? dim : 0);
+
     const cards = students.map(function (s) {
+      const ty = s.type || cls.type || 'hifz';
       const reps = monthReps[s.id] || {};
-      const rows = [];
-      let present = 0, total = 0, pages = 0;
+      let present = 0, pages = 0;
       Object.keys(reps).forEach(function (ds) {
         if (ds > today) return;
         const r = reps[ds];
-        total++;
         if (r.present) present++;
         if (r.present && r.sabaqDone) pages += (r.pages || 0) + (r.lines > 0 ? r.lines / 20 : 0);
-        rows.push({ ds: ds, r: r });
       });
-      rows.sort(function (a, b) { return a.ds < b.ds ? -1 : 1; });
-      const rate = total ? Math.round(present / total * 100) : 0;
-      const chart = progressChart(rows, sel.y, sel.m);
+      /* attendance strip: green = present, red = absent-or-no-report, outline = future day */
+      let dots = '';
+      for (let d = 1; d <= dim; d++) {
+        const ds = ym + '-' + (d < 10 ? '0' + d : '' + d);
+        const dc = ds > today ? 'dot-f' : ((reps[ds] && reps[ds].present) ? 'dot-p' : 'dot-a');
+        dots += '<span class="att-dot ' + dc + '" title="' + ds + '"></span>';
+      }
+      const strip = '<div class="att-strip">' + dots + '</div>';
+      const meta = ty === 'hifz' ? t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') : '';
+      const pagesBadge = ty === 'hifz'
+        ? '<span class="badge badge-ok">' + t('pagesMemorized') + ': ' + num(Math.round(pages)) + '</span>'
+        : (ty === 'qaida' ? '<span class="badge badge-ok">' + t('lessonNo') + ' ' + num(s.para) + '</span>' : '');
       return (
         '<div class="student-row" style="display:block;padding:14px">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
             '<div>' +
-              '<div style="font-weight:700">' + nameDisplay(s.name) + ' <span class="badge badge-cat">' + esc(s.category) + '</span></div>' +
-              '<div class="meta">' + t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') + '</div>' +
+              '<div style="font-weight:700">' + nameDisplay(s.name) + (s.category ? ' <span class="badge badge-cat">' + esc(s.category) + '</span>' : '') + '</div>' +
+              (meta ? '<div class="meta">' + meta + '</div>' : '') +
             '</div>' +
             '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
-              '<span class="pill" style="background:var(--gold-soft);color:var(--ink)">' + t('attendanceRate') + ': ' + num(rate) + '%</span>' +
-              '<span class="badge badge-ok">' + t('pagesMemorized') + ': ' + num(Math.round(pages)) + '</span>' +
+              '<span class="pill" style="background:var(--gold-soft);color:var(--ink)">' + t('attendance') + ': ' + num(present) + '/' + num(elapsed) + '</span>' +
+              pagesBadge +
             '</div>' +
           '</div>' +
-          (chart ? '<div style="margin-top:10px">' + chart + '</div>' : '<div class="meta" style="margin-top:8px">' + t('noReports') + '</div>') +
+          '<div style="margin-top:10px">' + strip + '</div>' +
         '</div>'
       );
     }).join('');
@@ -3291,7 +3333,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       '<h2>Student</h2>' +
       '<div class="grid">' +
         '<div class="g"><b>' + nameDisplay(st.name) + '</b>' + 'Student Name</div>' +
-        '<div class="g"><b>' + st.para + '</b>Current Para</div>' +
+        '<div class="g"><b>' + st.para + '</b>' + (((st.type || (cls && cls.type)) || 'hifz') === 'qaida' ? t('lessonNo') : 'Current Para') + '</div>' +
         '<div class="g"><b>' + (st.currentPage || '—') + '</b>Current Page</div>' +
         '<div class="g"><b>' + (st.fullTime ? 'Full-time' : 'Part-time') + '</b>Type</div>' +
         ((st.fromStart != null || st.fromEnd != null) ? '<div class="g"><b>' + (st.fromStart || 0) + ' + ' + (st.fromEnd || 0) + '</b>From Start + From End</div>' : '') +

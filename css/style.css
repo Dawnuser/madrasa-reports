@@ -814,3 +814,9 @@ table.tbl { width: 100%; border-collapse: collapse; background: var(--surface); 
 .p-card { margin-top: 14px; padding: 16px; }
 .p-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tbl tr.cur td { background: color-mix(in srgb, var(--gold) 10%, transparent); }
+/* attendance strip (class progress cards): green = present, red = absent-or-no-report, outline = future day */
+.att-strip { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+.att-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.att-dot.dot-p { background: var(--ok); }
+.att-dot.dot-a { background: #e05252; opacity: .8; }
+.att-dot.dot-f { background: transparent; border: 1px solid var(--line); }

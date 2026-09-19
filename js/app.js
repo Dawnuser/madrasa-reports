@@ -2874,6 +2874,16 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       );
     };
 
+    /* shift classes (tilawa/qaida) save per shift — a global Save All would
+       wrongly mark other shifts present. hifz has no shifts: single button. */
+    const shifts = [
+      { key: 'sh1', label: t('shift1') + ' (8-10)' },
+      { key: 'sh2', label: t('shift2') + ' (10-12)' },
+      { key: 'sh3', label: t('shift3') + ' (4-6)' },
+      { key: 'sh4', label: t('shift4') + ' (6-8)' }
+    ];
+    const hasShiftStudents = cls.type !== 'hifz';
+
     app.innerHTML = '' +
       topbar(true) +
       '<main class="app-main">' +
@@ -2882,17 +2892,10 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         '<div class="pill" style="margin-top:8px">' + t('date') + ' ' + esc(today) + '</div>' +
         '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('quickEntrySub') + '</div>' +
         quickEntryGroups() +
-        '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>' +
+        (hasShiftStudents ? '' : '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>') +
       '</main>';
 
     function quickEntryGroups() {
-      const shifts = [
-        { key: 'sh1', label: t('shift1') + ' (8-10)' },
-        { key: 'sh2', label: t('shift2') + ' (10-12)' },
-        { key: 'sh3', label: t('shift3') + ' (4-6)' },
-        { key: 'sh4', label: t('shift4') + ' (6-8)' }
-      ];
-      const hasShiftStudents = cls.type !== 'hifz';
       const cardFor = function (s) {
         return (
           '<div class="card" style="margin-top:12px">' +
@@ -2910,6 +2913,9 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           '</div>'
         );
       };
+      function shiftSaveBtn(key, label) {
+        return '<button class="btn btn-primary btn-block" data-action="qe-save-shift" data-shift="' + key + '" style="margin:10px 0 4px">💾 ' + t('saveAll') + ' — ' + label + '</button>';
+      }
       if (!hasShiftStudents) return students.map(cardFor).join('');
       var out = '';
       shifts.forEach(function (sh) {
@@ -2920,6 +2926,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
                ' <span class="shift-done-badge">' + shiftStatusBadge(sh.key) + '</span></div>' +
                '<div class="shift-body" id="shift-body-' + sh.key + '"' + (collapsedShifts[sh.key] ? ' style="display:none"' : '') + '>' +
                grp.map(cardFor).join('') +
+               shiftSaveBtn(sh.key, sh.label) +
                '</div></div>';
       });
       var unassigned = students.filter(function (s) { return !s.shift; });
@@ -2929,6 +2936,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
                ' <span class="shift-done-badge">' + shiftStatusBadge('un') + '</span></div>' +
                '<div class="shift-body" id="shift-body-un"' + (collapsedShifts['un'] ? ' style="display:none"' : '') + '>' +
                unassigned.map(cardFor).join('') +
+               shiftSaveBtn('un', t('shiftNone')) +
                '</div></div>';
       }
       return out;
@@ -3024,9 +3032,11 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       const abs = document.getElementById('qe-absent-' + sid);
       if (abs) abs.style.display = state[sid].present ? 'none' : '';
     };
-    viewActions['qe-save-all'] = function () {
+    /* shared saver: whole class (hifz) or one shift group. stay=true keeps
+       the qari on the page so the next shift can be entered afterwards. */
+    function saveStudentList(list, stay, okMsg) {
       const today2 = todayDs();
-      for (const s of students) {
+      for (const s of list) {
         const chk = state[s.id];
         const trk = trackOf(s);
         if (chk.present && chk.manzilDone && trk === 'hifz' && !chk.manzilPara) {
@@ -3034,7 +3044,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           return;
         }
       }
-      const jobs = students.map(function (s) {
+      const jobs = list.map(function (s) {
         const st2 = state[s.id];
         const track = trackOf(s);
         const manzilIsTri = track === 'hifz';
@@ -3059,11 +3069,23 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       Promise.all(jobs).then(function (results) {
         const failed = results.filter(function (r) { return r && r.ok === false; }).length;
         if (failed) { toast(t('saveFailed')); return; }
-        toast(t('savedAll'));
-        students.forEach(function (s) { savedIds.add(s.id); });
+        toast(okMsg || t('savedAll'));
+        list.forEach(function (s) { savedIds.add(s.id); });
         updateShiftBadges();
-        nav('dashboard');
+        if (!stay) nav('dashboard');
       });
+    }
+
+    viewActions['qe-save-all'] = function () { saveStudentList(students, false); };
+    viewActions['qe-save-shift'] = function (btn) {
+      const key = btn.getAttribute('data-shift');
+      const grp = key === 'un'
+        ? students.filter(function (s) { return !s.shift; })
+        : students.filter(function (s) { return (s.shift || '') === key; });
+      if (!grp.length) return;
+      let label = t('shiftNone');
+      shifts.forEach(function (sh) { if (sh.key === key) label = sh.label; });
+      saveStudentList(grp, true, t('savedAll') + ' — ' + label);
     };
   }
 

@@ -3726,7 +3726,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     if (s3) draft.manzilDone = s3.checked;
     const pg = g('f-pages'), ln = g('f-lines');
     if (pg) draft.pages = parseInt(pg.value, 10) || 0;
-    if (ln) draft.lines = parseInt(ln.value, 10) || 0;
+    if (ln) draft.lines = parseFloat(ln.value) || 0; /* parseFloat: qaida lines include 0.5 */
     const mpg = g('f-mpages'), mln = g('f-mlines');
     if (mpg) draft.manzilPages = parseInt(mpg.value, 10) || 0;
     if (mln) draft.manzilLines = parseInt(mln.value, 10) || 0;
@@ -3825,7 +3825,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
                 '<div class="field"><label for="f-pages">' + (isQaida ? t('lessonNo') : t('pages')) + '</label>' +
                   '<select id="f-pages"' + (locked ? ' disabled' : '') + '>' + rangeOpts(sabaqRange, rep.pages) + '</select></div>' +
                 '<div class="field"><label for="f-lines">' + t('lines') + '</label>' +
-                  '<select id="f-lines"' + (locked ? ' disabled' : '') + '>' + rangeOpts(20, rep.lines) + '</select></div>' +
+                  '<select id="f-lines"' + (locked ? ' disabled' : '') + '>' + (isQaida ? linesOpts(rep.lines) : rangeOpts(20, rep.lines)) + '</select></div>' +
               '</div>' +
             '</div>' +
             (showSabqi ?
@@ -3961,6 +3961,19 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     for (let i = 1; i <= max; i++) {
       out += '<option value="' + i + '"' + (selected === i ? ' selected' : '') + '>' + num(i) + '</option>';
     }
+    return out;
+  }
+
+  /* qaida lines: —, 0.5 (half line), 1–20. 0.5 needs the
+     reports.lines numeric migration (see migration-qaida-half-line.sql). */
+  function linesOpts(selected) {
+    let out = '<option value="0">—</option>';
+    const sel = Number(selected) || 0;
+    const vals = [0.5];
+    for (let i = 1; i <= 20; i++) vals.push(i);
+    vals.forEach(function (v) {
+      out += '<option value="' + v + '"' + (sel === v ? ' selected' : '') + '>' + num(v) + '</option>';
+    });
     return out;
   }
 
@@ -5515,7 +5528,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         '<div class="field"><label for="qe-pages-' + s.id + '">' + t('sabaq') + ' — ' + (track === 'qaida' ? t('lessonNo') : t('pages')) + '</label>' +
           '<select id="qe-pages-' + s.id + '" data-qe="pages" data-sid="' + s.id + '">' + rangeOpts(track === 'qaida' ? 17 : 10, st.pages) + '</select></div>' +
         '<div class="field"><label for="qe-lines-' + s.id + '">' + t('lines') + '</label>' +
-          '<select id="qe-lines-' + s.id + '" data-qe="lines" data-sid="' + s.id + '">' + rangeOpts(20, st.lines) + '</select></div>' +
+          '<select id="qe-lines-' + s.id + '" data-qe="lines" data-sid="' + s.id + '">' + (track === 'qaida' ? linesOpts(st.lines) : rangeOpts(20, st.lines)) + '</select></div>' +
       '</div>';
       out += '<div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">';
       if (track === 'hifz') out += sw('qe-sabqi-' + s.id, 'sabqi', st.sabqiDone, t('sabqi'));
@@ -5665,6 +5678,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
               else if (id.indexOf('mzsel') > -1) state[s.id].manzil = el.value;
               else if (id.indexOf('mpages') > -1) state[s.id].manzilPages = parseInt(el.value, 10) || 0;
               else if (id.indexOf('mlines') > -1) state[s.id].manzilLines = parseInt(el.value, 10) || 0;
+              else if (id.indexOf('qe-lines-') === 0) state[s.id].lines = parseFloat(el.value) || 0; /* qaida 0.5 */
               else state[s.id][id.indexOf('pages') > -1 ? 'pages' : 'lines'] = parseInt(el.value, 10) || 0;
             });
             el.addEventListener('change', function () {
@@ -5673,6 +5687,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
               else if (id.indexOf('mzsel') > -1) state[s.id].manzil = el.value;
               else if (id.indexOf('mpages') > -1) state[s.id].manzilPages = parseInt(el.value, 10) || 0;
               else if (id.indexOf('mlines') > -1) state[s.id].manzilLines = parseInt(el.value, 10) || 0;
+              else if (id.indexOf('qe-lines-') === 0) state[s.id].lines = parseFloat(el.value) || 0; /* qaida 0.5 */
               else state[s.id][id.indexOf('pages') > -1 ? 'pages' : 'lines'] = parseInt(el.value, 10) || 0;
             });
           }

@@ -317,7 +317,9 @@ trash: 'Archive',
       late: 'Late',
       lateSub: 'Came late today',
       test: 'Test',
-      testSub: 'Gave a test today'
+      testSub: 'Gave a test today',
+      transferConfirm: 'Move this student to another class? Daily reports, fees and parent access move along. Please review track, shift and category afterwards.',
+      transferDone: 'Student transferred. History, fees and parent access moved along.'
     },
     ur: {
       appName: 'مدرسہ دار المعارج',
@@ -633,7 +635,9 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       late: 'دیر سے آیا',
       lateSub: 'آج دیر سے آیا',
       test: 'ٹیسٹ',
-      testSub: 'آج ٹیسٹ دیا'
+      testSub: 'آج ٹیسٹ دیا',
+      transferConfirm: 'اس طالب علم کو دوسری کلاس میں منتقل کریں؟ یومیہ رپورٹس، فیس اور والدین کی رسائی ساتھ منتقل ہو جائے گی۔ بعد میں ٹریک، شفٹ اور کیٹیگری چیک کریں۔',
+      transferDone: 'طالب علم منتقل ہو گیا۔ رپورٹس، فیس اور والدین کی رسائی ساتھ منتقل ہو گئی۔'
     },
     ar: {
       appName: 'مدرسة دار المعارج',
@@ -949,7 +953,9 @@ trash: 'الأرشيف',
       late: 'متأخر',
       lateSub: 'حضر متأخراً اليوم',
       test: 'اختبار',
-      testSub: 'أدى اختباراً اليوم'
+      testSub: 'أدى اختباراً اليوم',
+      transferConfirm: 'نقل هذا الطالب إلى صف آخر؟ التقارير اليومية والرسوم ووصول ولي الأمر تنتقل معه. يرجى مراجعة المسار والفترة والفئة بعد ذلك.',
+      transferDone: 'تم نقل الطالب. انتقلت السجلات والرسوم ووصول ولي الأمر معه.'
     }
   };
 

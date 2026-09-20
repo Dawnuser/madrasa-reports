@@ -1932,10 +1932,17 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
 
     let currentEdit = null;
     let testsCur = 0;
-    const openModal = function (st) {
+    const openModal = async function (st) {
       currentEdit = st;
       testsCur = st.testsPassed || 0;
       const isEdit = !!st.id;
+      /* transfer target list (edit only): all classes with qari + track */
+      const allClasses = isEdit ? await DB.getClasses() : [];
+      const classOpts = function (cur) {
+        return allClasses.map(function (c) {
+          return '<option value="' + c.id + '"' + (c.id === cur ? ' selected' : '') + '>' + nameDisplay(c.name) + ' · ' + typeLabel(c) + '</option>';
+        }).join('');
+      };
       const opts = Object.keys(DB.categories).map(function (c) {
         return '<option value="' + c + '"' + (st.category === c ? ' selected' : '') + '>' + c + ' (' + DB.categories[c] + ' ' + t('day') + ')</option>';
       }).join('');
@@ -1978,6 +1985,8 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       b.innerHTML =
         '<div class="modal">' +
           '<h3>' + (isEdit ? t('editStudent') : t('addStudent')) + '</h3>' +
+          (isEdit ? '<div class="field"><label>' + t('classOf') + '</label>' +
+            '<select id="m-class">' + classOpts(st.classId) + '</select></div>' : '') +
           '<div class="field"><label>' + t('name') + '</label><input id="m-name" value="' + esc(st.name || '') + '"></div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
             '<div class="field"><label>' + t('age') + '</label><input id="m-age" type="number" min="3" max="30" value="' + (st.age || '') + '"></div>' +
@@ -2077,9 +2086,20 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
             testsPassed: isHifz ? testsCur : (currentEdit.testsPassed || 0)
           });
           if (!st2.name) { toast(I18N.get() === 'ur' ? 'نام درج کریں' : 'Enter a name'); return; }
+          /* transfer: class changed → confirm, move with history/fees/parent intact */
+          let movedTo = null;
+          const mcls = document.getElementById('m-class');
+          if (isEdit && mcls && mcls.value && mcls.value !== currentEdit.classId) {
+            const target = allClasses.find(function (c) { return c.id === mcls.value; });
+            const targetLabel = target ? nameDisplay(target.name) + ' · ' + typeLabel(target) : '';
+            if (!window.confirm(nameClean(currentEdit.name) + '\n\n' + t('transferConfirm') + '\n\n→ ' + targetLabel)) return;
+            st2.classId = mcls.value;
+            movedTo = mcls.value;
+          }
           DB.saveStudent(st2).then(function () {
             b.remove();
-            renderClass(session, cid);
+            if (movedTo) toast(t('transferDone'));
+            renderClass(session, movedTo || cid);
           });
         }
       });

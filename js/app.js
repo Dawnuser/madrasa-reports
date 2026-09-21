@@ -18,6 +18,13 @@
   function nameClean(s) {
     return String(s == null ? '' : s).replace(/Sheikh\s*/gi, 'Ustad ').replace(/\s+/g, ' ').trim();
   }
+  /* two-letter initials: first + last word (single-word names → one letter) */
+  function initialsOf(name) {
+    const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return '?';
+    if (words.length === 1) return words[0].charAt(0).toUpperCase();
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+  }
 
   function num(n) {
     if (n === null || n === undefined || n === '') return '—';
@@ -442,6 +449,9 @@
           '<div style="font-size:.8rem;color:var(--ink-soft);margin-top:8px">' + t('inviteAccountSub') + '</div>' +
         '</div>';
       viewActions['iv-claim'] = async function () {
+        /* staff accounts must never be flipped to parent: a qari testing a
+           code here would permanently lose the qari role */
+        if (session && (session.role === 'qari' || session.role === 'principal')) { toast(t('inviteStaffBlock')); return; }
         const res = await DB.claimInvite(code);
         if (!res.ok) { toast(t('saveFailed')); return; }
         toast(t('inviteLinked'));
@@ -531,7 +541,7 @@
         if (pwd !== pwd2) { toast(t('passwordMismatch')); return; }
         const res = await DB.signupParent(code, name, phone, email, pwd);
         if (!res.ok) {
-          toast(res.error === 'bad_email' ? t('parentEmailBad') : res.error === 'invalid_code' ? t('inviteNotFound') : t('saveFailed'));
+          toast(res.error === 'bad_email' ? t('parentEmailBad') : res.error === 'invalid_code' ? t('inviteNotFound') : res.error === 'email_taken' ? t('emailTaken') : t('saveFailed'));
           return;
         }
         toast(t('inviteLinked'));
@@ -630,7 +640,7 @@
 
   function parentManzilName(r, manzilIsTri) {
     if (!r.present || !r.manzilDone) return '—';
-    if (manzilIsTri) return (r.manzilPara ? I18N.t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilDisplay(r.manzil);
+    if (manzilIsTri) return (r.manzilPara ? I18N.t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilLabel(r.manzil);
     const parts = [];
     if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
     if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
@@ -996,10 +1006,8 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
   }
 
   function buildDraft(sid, ds, existing) {
-    const saved = loadDraft(sid, ds);
-    if (saved && saved.sid === sid && saved.ds === ds) return saved;
     const r = existing || {};
-    return {
+    const base = {
       sid: sid, ds: ds,
       present: r.present !== undefined ? r.present : true,
       sabaqDone: !!r.sabaqDone,
@@ -1016,6 +1024,19 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       late: !!r.late,
       testDone: !!r.testDone
     };
+    /* merge a previously saved draft over defaults (never raw) so stale or
+       legacy draft shapes — missing keys, null comment — can never crash
+       the form on open or on save */
+    const saved = loadDraft(sid, ds);
+    if (saved && saved.sid === sid && saved.ds === ds) {
+      Object.keys(base).forEach(function (k) {
+        if (k === 'sid' || k === 'ds') return;
+        if (saved[k] !== undefined) base[k] = saved[k];
+      });
+    }
+    if (base.comment == null) base.comment = '';
+    else base.comment = String(base.comment);
+    return base;
   }
 
   function captureWidgets() {
@@ -1233,7 +1254,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         manzilPara: draft.present && draft.manzilDone && manzilIsTri ? (draft.manzilPara || null) : null,
         manzilPages: draft.present && draft.manzilDone && !manzilIsTri ? (draft.manzilPages || null) : null,
         manzilLines: draft.present && draft.manzilDone && !manzilIsTri ? (draft.manzilLines || null) : null,
-        comment: (draft.comment.trim() || null),
+        comment: ((draft.comment == null ? '' : String(draft.comment)).trim() || null),
         reason: !draft.present && !!draft.reason,
         late: draft.present && !manzilIsTri && !!draft.late,
         testDone: draft.present && manzilIsTri && !!draft.testDone
@@ -1278,9 +1299,15 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
   }
 
   const MANZIL_OPTS = ['0.25', '0.5', '0.75', '1', '1.25', '1.5'];
+  const MANZIL_FRAC = { '0.25': '¼', '0.5': '½', '0.75': '¾', '1': '1', '1.25': '1¼', '1.5': '1½' };
+  /* display-only vulgar fractions; values + matching stay decimal strings */
+  function manzilLabel(v) {
+    const d = manzilDisplay(v);
+    return MANZIL_FRAC[d] || d;
+  }
   function manzilOptsHtml(selected) {
     return MANZIL_OPTS.map(function (v) {
-      return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + v + '</option>';
+      return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + manzilLabel(v) + '</option>';
     }).join('');
   }
   function manzilDisplay(v) {
@@ -1354,7 +1381,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
 
     const manzilName = function (r) {
       if (!r.present || !r.manzilDone) return '—';
-      if (manzilIsTri) return (r.manzilPara ? t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilDisplay(r.manzil);
+      if (manzilIsTri) return (r.manzilPara ? t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilLabel(r.manzil);
       const parts = [];
       if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
       if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
@@ -1556,7 +1583,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           return (
             '<div class="class-card" style="margin-bottom:10px">' +
               '<a class="class-row" href="#/class/' + c.id + '" style="flex:1">' +
-                '<span class="avatar">' + esc(c.name.charAt(c.name.length - 1)) + '</span>' +
+                '<span class="avatar">' + esc(initialsOf(c.name)) + '</span>' +
                 '<span><span class="nm">' + nameDisplay(c.name) + '</span><br><span class="sub">' + num(counts[c.id]) + ' ' + t('students') + ' · ' + esc(typeLabel) + '</span></span>' +
                 '<span style="color:var(--gold)">&rsaquo;</span>' +
               '</a>' +
@@ -3205,7 +3232,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
 
   function manzilEn(rep, manzilIsTri) {
     if (!rep.manzilDone) return 'Not done';
-    if (manzilIsTri) return (rep.manzilPara ? 'Para ' + rep.manzilPara + ' · ' : '') + manzilDisplay(rep.manzil);
+    if (manzilIsTri) return (rep.manzilPara ? 'Para ' + rep.manzilPara + ' · ' : '') + manzilLabel(rep.manzil);
     const parts = [];
     if (rep.manzilPages) parts.push(rep.manzilPages + 'p');
     if (rep.manzilLines) parts.push(rep.manzilLines + 'l');

@@ -2738,12 +2738,13 @@ const DB = (function () {
   function nameClean(s) {
     return String(s == null ? '' : s).replace(/Sheikh\s*/gi, 'Ustad ').replace(/\s+/g, ' ').trim();
   }
-  /* two-letter initials: first + last word (single-word names → one letter) */
+  /* two-letter initials: Ustad/Sheikh is a title prefix, the name starts after
+     it; hyphenated parts count (Atta-ul-Rahman → AR, Anees → A) */
   function initialsOf(name) {
-    const words = String(name || '').trim().split(/\s+/).filter(Boolean);
-    if (!words.length) return '?';
-    if (words.length === 1) return words[0].charAt(0).toUpperCase();
-    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+    const parts = String(name || '').replace(/^(sheikh|ustad)\s+/i, '').trim().split(/[\s\-]+/).filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   }
 
   function num(n) {
@@ -3360,7 +3361,7 @@ const DB = (function () {
 
   function parentManzilName(r, manzilIsTri) {
     if (!r.present || !r.manzilDone) return '—';
-    if (manzilIsTri) return (r.manzilPara ? I18N.t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilLabel(r.manzil);
+    if (manzilIsTri) return (r.manzilPara ? I18N.t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilDisplay(r.manzil);
     const parts = [];
     if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
     if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
@@ -4019,15 +4020,9 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
   }
 
   const MANZIL_OPTS = ['0.25', '0.5', '0.75', '1', '1.25', '1.5'];
-  const MANZIL_FRAC = { '0.25': '¼', '0.5': '½', '0.75': '¾', '1': '1', '1.25': '1¼', '1.5': '1½' };
-  /* display-only vulgar fractions; values + matching stay decimal strings */
-  function manzilLabel(v) {
-    const d = manzilDisplay(v);
-    return MANZIL_FRAC[d] || d;
-  }
   function manzilOptsHtml(selected) {
     return MANZIL_OPTS.map(function (v) {
-      return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + manzilLabel(v) + '</option>';
+      return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + v + '</option>';
     }).join('');
   }
   function manzilDisplay(v) {
@@ -4101,7 +4096,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
 
     const manzilName = function (r) {
       if (!r.present || !r.manzilDone) return '—';
-      if (manzilIsTri) return (r.manzilPara ? t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilLabel(r.manzil);
+      if (manzilIsTri) return (r.manzilPara ? t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilDisplay(r.manzil);
       const parts = [];
       if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
       if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
@@ -5952,7 +5947,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
 
   function manzilEn(rep, manzilIsTri) {
     if (!rep.manzilDone) return 'Not done';
-    if (manzilIsTri) return (rep.manzilPara ? 'Para ' + rep.manzilPara + ' · ' : '') + manzilLabel(rep.manzil);
+    if (manzilIsTri) return (rep.manzilPara ? 'Para ' + rep.manzilPara + ' · ' : '') + manzilDisplay(rep.manzil);
     const parts = [];
     if (rep.manzilPages) parts.push(rep.manzilPages + 'p');
     if (rep.manzilLines) parts.push(rep.manzilLines + 'l');
@@ -5960,7 +5955,11 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
   }
 
   function csvCell(v) {
-    const s = String(v == null ? '' : v);
+    let s = String(v == null ? '' : v);
+    /* neutralize spreadsheet formula injection: a leading = + - @ (or tab/CR)
+       in a name/comment would run as a formula on the principal's machine.
+       The quote prefix forces plain text and stays invisible in Excel/Sheets. */
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return '"' + s.replace(/"/g, '""') + '"';
   }
 

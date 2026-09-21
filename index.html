@@ -1100,6 +1100,8 @@ trash: 'Archive',
       inviteCreateAccount: 'Create account & link',
       inviteAccountSub: 'Create a parent account so you can view reports.',
       inviteLinked: 'Account linked. Welcome!',
+      inviteStaffBlock: 'This email is already a qari account. Invite codes are for parents only.',
+      emailTaken: 'This email is already registered. Log in instead — invite codes are for new parent accounts only.',
       inviteCopied: 'Invite code copied.',
       signupTitle: 'Parent Sign Up',
       signupSub: 'Enter the invite code you received, confirm your child, then create your account.',
@@ -1418,6 +1420,8 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       inviteCreateAccount: 'اکاؤنٹ بنائیں اور منسلک کریں',
       inviteAccountSub: 'ایک والدین اکاؤنٹ بنائیں تاکہ رپورٹس دیکھ سکیں۔',
       inviteLinked: 'اکاؤنٹ منسلک ہو گیا۔ خوش آمدید!',
+      inviteStaffBlock: 'یہ ای میل پہلے سے قاری کا اکاؤنٹ ہے۔ انوائٹ کوڈ صرف والدین کے لیے ہیں۔',
+      emailTaken: 'یہ ای میل پہلے سے رجسٹرڈ ہے۔ لاگ ان کریں — انوائٹ کوڈ صرف نئے والدین کے اکاؤنٹ کے لیے ہیں۔',
       inviteCopied: 'انوائٹ کوڈ کاپی ہو گیا۔',
       signupTitle: 'والدین کا اندراج',
       signupSub: 'انوائٹ کوڈ درج کریں، اپنے بچے کی تصدیق کریں، پھر اکاؤنٹ بنائیں۔',
@@ -1736,6 +1740,8 @@ trash: 'الأرشيف',
       inviteCreateAccount: 'إنشاء حساب وربط',
       inviteAccountSub: 'أنشئ حساب ولي أمر لعرض التقارير.',
       inviteLinked: 'تم ربط الحساب. أهلاً بك!',
+      inviteStaffBlock: 'هذا البريد مسجل كحساب قارئ. رموز الدعوة مخصصة لأولياء الأمور فقط.',
+      emailTaken: 'هذا البريد مسجل بالفعل. سجل الدخول بدلاً من ذلك — رموز الدعوة لحسابات أولياء الأمور الجديدة فقط.',
       inviteCopied: 'تم نسخ رمز الدعوة.',
       signupTitle: 'تسجيل ولي الأمر',
       signupSub: 'أدخل رمز الدعوة، تأكد من اسم طفلك، ثم أنشئ حسابك.',
@@ -2314,7 +2320,15 @@ const DB = (function () {
         password: password,
         options: { data: { name: String(name || '').trim(), role: 'parent', phone: String(phone || '').trim() } }
       });
-      if (error || !data.user) return { ok: false, error: (error && error.message) || 'signup_failed' };
+      if (error || !data.user) {
+        const msg = (error && error.message) || '';
+        /* staff (or anyone) reusing a registered @madrasa.com address must get
+           a clear answer, not a generic failure — and no account is harmed */
+        if (/already registered|already exists|already been registered|taken/i.test(msg)) return { ok: false, error: 'email_taken' };
+        return { ok: false, error: msg || 'signup_failed' };
+      }
+      /* GoTrue sometimes answers "success" with zero identities = taken */
+      if (data.user.identities && data.user.identities.length === 0) return { ok: false, error: 'email_taken' };
       let session = data.session;
       if (!session) {
         const s = await c.auth.signInWithPassword({ email: normEmail, password: password });
@@ -2723,6 +2737,13 @@ const DB = (function () {
   }
   function nameClean(s) {
     return String(s == null ? '' : s).replace(/Sheikh\s*/gi, 'Ustad ').replace(/\s+/g, ' ').trim();
+  }
+  /* two-letter initials: first + last word (single-word names → one letter) */
+  function initialsOf(name) {
+    const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return '?';
+    if (words.length === 1) return words[0].charAt(0).toUpperCase();
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
   }
 
   function num(n) {
@@ -3148,6 +3169,9 @@ const DB = (function () {
           '<div style="font-size:.8rem;color:var(--ink-soft);margin-top:8px">' + t('inviteAccountSub') + '</div>' +
         '</div>';
       viewActions['iv-claim'] = async function () {
+        /* staff accounts must never be flipped to parent: a qari testing a
+           code here would permanently lose the qari role */
+        if (session && (session.role === 'qari' || session.role === 'principal')) { toast(t('inviteStaffBlock')); return; }
         const res = await DB.claimInvite(code);
         if (!res.ok) { toast(t('saveFailed')); return; }
         toast(t('inviteLinked'));
@@ -3237,7 +3261,7 @@ const DB = (function () {
         if (pwd !== pwd2) { toast(t('passwordMismatch')); return; }
         const res = await DB.signupParent(code, name, phone, email, pwd);
         if (!res.ok) {
-          toast(res.error === 'bad_email' ? t('parentEmailBad') : res.error === 'invalid_code' ? t('inviteNotFound') : t('saveFailed'));
+          toast(res.error === 'bad_email' ? t('parentEmailBad') : res.error === 'invalid_code' ? t('inviteNotFound') : res.error === 'email_taken' ? t('emailTaken') : t('saveFailed'));
           return;
         }
         toast(t('inviteLinked'));
@@ -3336,7 +3360,7 @@ const DB = (function () {
 
   function parentManzilName(r, manzilIsTri) {
     if (!r.present || !r.manzilDone) return '—';
-    if (manzilIsTri) return (r.manzilPara ? I18N.t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilDisplay(r.manzil);
+    if (manzilIsTri) return (r.manzilPara ? I18N.t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilLabel(r.manzil);
     const parts = [];
     if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
     if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
@@ -3702,10 +3726,8 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
   }
 
   function buildDraft(sid, ds, existing) {
-    const saved = loadDraft(sid, ds);
-    if (saved && saved.sid === sid && saved.ds === ds) return saved;
     const r = existing || {};
-    return {
+    const base = {
       sid: sid, ds: ds,
       present: r.present !== undefined ? r.present : true,
       sabaqDone: !!r.sabaqDone,
@@ -3722,6 +3744,19 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       late: !!r.late,
       testDone: !!r.testDone
     };
+    /* merge a previously saved draft over defaults (never raw) so stale or
+       legacy draft shapes — missing keys, null comment — can never crash
+       the form on open or on save */
+    const saved = loadDraft(sid, ds);
+    if (saved && saved.sid === sid && saved.ds === ds) {
+      Object.keys(base).forEach(function (k) {
+        if (k === 'sid' || k === 'ds') return;
+        if (saved[k] !== undefined) base[k] = saved[k];
+      });
+    }
+    if (base.comment == null) base.comment = '';
+    else base.comment = String(base.comment);
+    return base;
   }
 
   function captureWidgets() {
@@ -3939,7 +3974,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         manzilPara: draft.present && draft.manzilDone && manzilIsTri ? (draft.manzilPara || null) : null,
         manzilPages: draft.present && draft.manzilDone && !manzilIsTri ? (draft.manzilPages || null) : null,
         manzilLines: draft.present && draft.manzilDone && !manzilIsTri ? (draft.manzilLines || null) : null,
-        comment: (draft.comment.trim() || null),
+        comment: ((draft.comment == null ? '' : String(draft.comment)).trim() || null),
         reason: !draft.present && !!draft.reason,
         late: draft.present && !manzilIsTri && !!draft.late,
         testDone: draft.present && manzilIsTri && !!draft.testDone
@@ -3984,9 +4019,15 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
   }
 
   const MANZIL_OPTS = ['0.25', '0.5', '0.75', '1', '1.25', '1.5'];
+  const MANZIL_FRAC = { '0.25': '¼', '0.5': '½', '0.75': '¾', '1': '1', '1.25': '1¼', '1.5': '1½' };
+  /* display-only vulgar fractions; values + matching stay decimal strings */
+  function manzilLabel(v) {
+    const d = manzilDisplay(v);
+    return MANZIL_FRAC[d] || d;
+  }
   function manzilOptsHtml(selected) {
     return MANZIL_OPTS.map(function (v) {
-      return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + v + '</option>';
+      return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + manzilLabel(v) + '</option>';
     }).join('');
   }
   function manzilDisplay(v) {
@@ -4060,7 +4101,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
 
     const manzilName = function (r) {
       if (!r.present || !r.manzilDone) return '—';
-      if (manzilIsTri) return (r.manzilPara ? t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilDisplay(r.manzil);
+      if (manzilIsTri) return (r.manzilPara ? t('manzilPara') + ' ' + num(r.manzilPara) + ' · ' : '') + manzilLabel(r.manzil);
       const parts = [];
       if (r.manzilPages) parts.push(num(r.manzilPages) + 'p');
       if (r.manzilLines) parts.push(num(r.manzilLines) + 'l');
@@ -4262,7 +4303,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           return (
             '<div class="class-card" style="margin-bottom:10px">' +
               '<a class="class-row" href="#/class/' + c.id + '" style="flex:1">' +
-                '<span class="avatar">' + esc(c.name.charAt(c.name.length - 1)) + '</span>' +
+                '<span class="avatar">' + esc(initialsOf(c.name)) + '</span>' +
                 '<span><span class="nm">' + nameDisplay(c.name) + '</span><br><span class="sub">' + num(counts[c.id]) + ' ' + t('students') + ' · ' + esc(typeLabel) + '</span></span>' +
                 '<span style="color:var(--gold)">&rsaquo;</span>' +
               '</a>' +
@@ -5911,7 +5952,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
 
   function manzilEn(rep, manzilIsTri) {
     if (!rep.manzilDone) return 'Not done';
-    if (manzilIsTri) return (rep.manzilPara ? 'Para ' + rep.manzilPara + ' · ' : '') + manzilDisplay(rep.manzil);
+    if (manzilIsTri) return (rep.manzilPara ? 'Para ' + rep.manzilPara + ' · ' : '') + manzilLabel(rep.manzil);
     const parts = [];
     if (rep.manzilPages) parts.push(rep.manzilPages + 'p');
     if (rep.manzilLines) parts.push(rep.manzilLines + 'l');

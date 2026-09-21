@@ -460,7 +460,15 @@ const DB = (function () {
         password: password,
         options: { data: { name: String(name || '').trim(), role: 'parent', phone: String(phone || '').trim() } }
       });
-      if (error || !data.user) return { ok: false, error: (error && error.message) || 'signup_failed' };
+      if (error || !data.user) {
+        const msg = (error && error.message) || '';
+        /* staff (or anyone) reusing a registered @madrasa.com address must get
+           a clear answer, not a generic failure — and no account is harmed */
+        if (/already registered|already exists|already been registered|taken/i.test(msg)) return { ok: false, error: 'email_taken' };
+        return { ok: false, error: msg || 'signup_failed' };
+      }
+      /* GoTrue sometimes answers "success" with zero identities = taken */
+      if (data.user.identities && data.user.identities.length === 0) return { ok: false, error: 'email_taken' };
       let session = data.session;
       if (!session) {
         const s = await c.auth.signInWithPassword({ email: normEmail, password: password });

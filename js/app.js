@@ -3166,15 +3166,16 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         if (r.present) present++;
         if (r.present && r.sabaqDone) pages += (r.pages || 0) + (r.lines > 0 ? r.lines / 20 : 0);
       });
-      /* attendance strip: green = present, red = absent-or-no-report, outline = future day */
+      /* attendance strip: green = present, red = absent, gray = no report, outline = future day */
       let dots = '';
       for (let d = 1; d <= dim; d++) {
         const ds = ym + '-' + (d < 10 ? '0' + d : '' + d);
-        const dc = ds > today ? 'dot-f' : ((reps[ds] && reps[ds].present) ? 'dot-p' : 'dot-a');
+        const dc = ds > today ? 'dot-f' : (!reps[ds] ? 'dot-n' : (reps[ds].present ? 'dot-p' : 'dot-a'));
         dots += '<span class="att-dot ' + dc + '" title="' + ds + '"></span>';
       }
       const strip = '<div class="att-strip">' + dots + '</div>';
-      const meta = ty === 'hifz' ? t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') : '';
+      /* qaida carries its lesson badge instead of para/page meta */
+      const meta = ty === 'qaida' ? '' : t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—');
       const pagesBadge = ty === 'hifz'
         ? '<span class="badge badge-ok">' + t('pagesMemorized') + ': ' + num(Math.round(pages)) + '</span>'
         : (ty === 'qaida' ? '<span class="badge badge-ok">' + t('lessonNo') + ' ' + num(s.para) + '</span>' : '');
@@ -3208,6 +3209,11 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
               return '<option value="' + mv + '"' + (mv === ym ? ' selected' : '') + '>' + monthLabel(mo.y, mo.m) + '</option>';
             }).join('') +
           '</select>' +
+        '</div>' +
+        '<div style="display:flex;gap:14px;margin:12px 0 4px;font-size:.8rem;color:var(--ink-soft);flex-wrap:wrap">' +
+          '<span><span class="att-key ok"></span> ' + t('present') + '</span>' +
+          '<span><span class="att-key bad"></span> ' + t('absent') + '</span>' +
+          '<span><span class="att-key none"></span> ' + t('noMark') + '</span>' +
         '</div>' +
         (students.length === 0 ? '<div class="empty-note" style="margin-top:14px">' + t('noStudents') + '</div>' : cards) +
       '</main>';

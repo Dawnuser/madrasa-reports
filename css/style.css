@@ -706,7 +706,7 @@ table.tbl { width: 100%; border-collapse: collapse; background: var(--surface); 
 .att-cell b { font-weight: 600; }
 .att-cell.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); border-color: color-mix(in srgb, var(--ok) 45%, transparent); color: var(--ok); }
 .att-cell.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); border-color: color-mix(in srgb, var(--bad) 40%, transparent); color: var(--bad); }
-.att-cell.none { opacity: .55; }
+.att-cell.none { opacity: .85; background: color-mix(in srgb, var(--line) 35%, transparent); border-color: color-mix(in srgb, var(--line) 60%, transparent); color: var(--ink-soft); }
 .att-cell.empty { background: transparent; border-color: transparent; }
 .att-key { display: inline-block; width: 12px; height: 12px; border-radius: 4px; vertical-align: -1px; margin-inline-end: 4px; }
 .att-key.ok { background: var(--ok); }
@@ -820,3 +820,4 @@ table.tbl { width: 100%; border-collapse: collapse; background: var(--surface); 
 .att-dot.dot-p { background: var(--ok); }
 .att-dot.dot-a { background: #e05252; opacity: .8; }
 .att-dot.dot-f { background: transparent; border: 1px solid var(--line); }
+.att-dot.dot-n { background: var(--line); }

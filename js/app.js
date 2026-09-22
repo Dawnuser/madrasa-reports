@@ -1313,34 +1313,6 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     return '—';
   }
 
-  function progressChart(rows, y, m) {
-    const days = [];
-    for (let i = 1; i <= 31; i++) {
-      const ds = y + '-' + String(m).padStart(2, '0') + '-' + String(i).padStart(2, '0');
-      days.push(ds);
-    }
-    const vals = days.map(function (ds) {
-      const r = rows.find(function (x) { return x.ds === ds; });
-      if (!r || !r.r.present || !r.r.sabaqDone) return 0;
-      return (r.r.pages || 0) + (r.r.lines > 0 ? r.r.lines / 20 : 0);
-    });
-    const max = Math.max.apply(null, vals);
-    if (!max) return '';
-    const W = 260, H = 80, PAD = 4, BW = Math.max(4, Math.floor((W - PAD * 2) / vals.length));
-    let bars = '';
-    vals.forEach(function (v, i) {
-      const bh = v > 0 ? Math.max(2, Math.round((v / max) * (H - PAD * 2))) : 0;
-      const x = PAD + i * BW;
-      const yb = H - PAD - bh;
-      bars += '<rect x="' + x + '" y="' + yb + '" width="' + Math.max(1, BW - 1) + '" height="' + bh + '" fill="' + (v > 0 ? '#0E6B3C' : '#e0d8c8') + '" rx="1"/>';
-    });
-    return '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:320px;display:block;margin:0 auto">' +
-      '<text x="2" y="12" font-size="9" fill="#888">' + (Math.round(max * 10) / 10) + '</text>' +
-      '<text x="2" y="' + (H - 2) + '" font-size="9" fill="#888">0</text>' +
-      bars +
-      '</svg>';
-  }
-
   /* ---------- HISTORY ---------- */
   async function renderHistory(session, sid, q) {
     const t = I18N.t;
@@ -1392,8 +1364,6 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       return parts.join('+') || '—';
     };
 
-    const chart = progressChart(rows, sel.y, sel.m);
-
     app.innerHTML = '' +
       topbar(true) +
       '<main class="app-main">' +
@@ -1408,10 +1378,6 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           '<div class="stat"><div class="n">' + num(absentCount) + '</div><div class="l">' + t('absentDays') + '</div></div>' +
           '<div class="stat"><div class="n">' + num(rows.length) + '</div><div class="l">' + t('totalDays') + '</div></div>' +
         '</div>' +
-        (chart ? '<div class="card" style="margin-top:14px;padding:14px">' +
-          '<div class="section-title" style="margin-bottom:6px">📈 ' + t('progressChart') + '</div>' +
-          chart +
-        '</div>' : '') +
         '<div class="field">' +
           '<label>' + t('month') + '</label>' +
           '<select id="f-month" data-change="f-month">' +
@@ -3174,11 +3140,13 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         dots += '<span class="att-dot ' + dc + '" title="' + ds + '"></span>';
       }
       const strip = '<div class="att-strip">' + dots + '</div>';
-      /* qaida carries its lesson badge instead of para/page meta */
-      const meta = ty === 'qaida' ? '' : t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—');
+      /* hifz: full meta + memorized badge · qaida: current lesson on the left,
+         attendance only on the right · tilawa: attendance only */
+      const meta = ty === 'qaida' ? t('currentLesson') + ' ' + num(s.para) :
+        (ty === 'hifz' ? t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—') : '');
       const pagesBadge = ty === 'hifz'
         ? '<span class="badge badge-ok">' + t('pagesMemorized') + ': ' + num(Math.round(pages)) + '</span>'
-        : (ty === 'qaida' ? '<span class="badge badge-ok">' + t('lessonNo') + ' ' + num(s.para) + '</span>' : '');
+        : '';
       return (
         '<div class="student-row" style="display:block;padding:14px">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +

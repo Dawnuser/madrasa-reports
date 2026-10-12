@@ -1,14 +1,14 @@
 # Madrasa Reports
 
-Daily memorization tracking system for **Madrasa Dar ul Ma'arij** (Muscat, Oman) — qaris log each student's Sabaq / Sabqi / Manzil every day, parents follow their child's progress from their own portal, and the admin sees every class at a glance.
+Daily memorization tracking system for **Madrasa Dar ul Ma'arij** (Muscat, Oman)  -  qaris log each student's Sabaq / Sabqi / Manzil every day, parents follow their child's progress from their own portal, and the admin sees every class at a glance.
 
 ## What it does
 
-- **Role-based portals** — admin (all classes, fees, reports), qari (own class attendance + daily reports), parent (own child's progress + fee status)
-- **Daily reports** — Sabaq (new lesson), Sabqi (recent revision), Manzil (full revision) with pages/lines, comments, and absence marking
-- **Fee tracking** — monthly fee settings per student (full-time / part-time), payment marking with history
-- **Trilingual UI** — English, Urdu, and Arabic with full RTL layout and Jameel Noori Nastaleeq font for Urdu text
-- **Installable PWA** — manifest + service worker, works from the home screen on qaris' phones
+- **Role-based portals**  -  admin (all classes, fees, reports), qari (own class attendance + daily reports), parent (own child's progress + fee status)
+- **Daily reports**  -  Sabaq (new lesson), Sabqi (recent revision), Manzil (full revision) with pages/lines, comments, and absence marking
+- **Fee tracking**  -  monthly fee settings per student (full-time / part-time), payment marking with history
+- **Trilingual UI**  -  English, Urdu, and Arabic with full RTL layout and Jameel Noori Nastaleeq font for Urdu text
+- **Installable PWA**  -  manifest + service worker, works from the home screen on qaris' phones
 
 ## Tech
 
@@ -19,7 +19,7 @@ Daily memorization tracking system for **Madrasa Dar ul Ma'arij** (Muscat, Oman)
 ## Project structure
 
 ```
-index.html              # built single-file app (generated — see Build)
+index.html              # built single-file app (generated  -  see Build)
 css/style.css           # all styles
 js/app.js               # UI + routing
 js/data.js              # Supabase data layer
@@ -37,6 +37,6 @@ deploy.ps1              # deploy helper
 1. Create a Supabase project.
 2. Run `supabase-schema.sql`, then the `supabase-patch*.sql` files in order, in the Supabase SQL editor.
 3. Put your project URL + anon key in `js/data.js` (`SUPABASE_URL`, `SUPABASE_ANON_KEY`).
-4. Open `index.html` — or run `node build-single-html.js` to produce the deployable single file.
+4. Open `index.html`  -  or run `node build-single-html.js` to produce the deployable single file.
 
-> `seed-supabase.js` inserts demo data with a placeholder admin credential — change it before running against any real database, and never commit real credentials.
+> `seed-supabase.js` inserts demo data with a placeholder admin credential  -  change it before running against any real database, and never commit real credentials.

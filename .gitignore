@@ -1,0 +1,3 @@
+# Local-only dev helper — stale, contains a live credential in plaintext.
+# Purged from history; never track again.
+seed-supabase.js

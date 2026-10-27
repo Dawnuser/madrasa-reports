@@ -884,7 +884,7 @@ const I18N = (function () {
       save: 'Save Report',
       saveOk: 'Save',
       saved: 'Report saved',
-      locked: 'Reports older than yesterday are locked. Only the principal can change them.',
+      locked: 'Reports older than the day before yesterday are locked. Only the principal can change them.',
       date: 'Date',
       attendance: 'Attendance',
       present: 'Present',
@@ -906,6 +906,8 @@ const I18N = (function () {
       today: 'Today',
       yesterday: 'Yesterday',
       month: 'Month',
+      year: 'Year',
+      feeNotOpen: 'Advance marking for this year opens in January.',
       historyTitle: 'Report History',
       noReports: 'No reports for this month.',
       progressChart: 'Progress — pages per day',
@@ -1179,7 +1181,13 @@ trash: 'Archive',
       test: 'Test',
       testSub: 'Gave a test today',
       transferConfirm: 'Move this student to another class? Daily reports, fees and parent access move along. Please review track, shift and category afterwards.',
-      transferDone: 'Student transferred. History, fees and parent access moved along.'
+      transferDone: 'Student transferred. History, fees and parent access moved along.',
+      dayChanged: 'Date changed — entry reloaded.',
+      discardChanges: 'Discard unsaved changes and switch date?',
+      classDay: 'Class Day Report',
+      classDaySub: 'Whole class, one day',
+      classDayEmpty: 'No reports for this day yet.',
+      dayBefore: 'Day before yesterday'
     },
     ur: {
       appName: 'مدرسہ دار المعارج',
@@ -1204,7 +1212,7 @@ trash: 'Archive',
       save: 'رپورٹ محفوظ کریں',
       saveOk: 'محفوظ کریں',
       saved: 'رپورٹ محفوظ ہو گئی',
-      locked: 'کل سے پہلے کی رپورٹیں تبدیل نہیں ہو سکتیں۔',
+      locked: 'پرسوں سے پہلے کی رپورٹیں تبدیل نہیں ہو سکتیں۔',
       date: 'تاریخ',
       attendance: 'حاضری',
       present: 'حاضر',
@@ -1226,6 +1234,8 @@ trash: 'Archive',
       today: 'آج',
       yesterday: 'کل',
       month: 'مہینہ',
+      year: 'سال',
+      feeNotOpen: 'اس سال کی پیشگی فیس جنوری میں کھلے گی۔',
 historyTitle: 'رپورٹ ریکارڈ',
       noReports: 'اس مہینے کی کوئی رپورٹ نہیں۔',
       progressChart: 'پیشرفت — یومیہ صفحات',
@@ -1499,7 +1509,13 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       test: 'ٹیسٹ',
       testSub: 'آج ٹیسٹ دیا',
       transferConfirm: 'اس طالب علم کو دوسری کلاس میں منتقل کریں؟ یومیہ رپورٹس، فیس اور والدین کی رسائی ساتھ منتقل ہو جائے گی۔ بعد میں ٹریک، شفٹ اور کیٹیگری چیک کریں۔',
-      transferDone: 'طالب علم منتقل ہو گیا۔ رپورٹس، فیس اور والدین کی رسائی ساتھ منتقل ہو گئی۔'
+      transferDone: 'طالب علم منتقل ہو گیا۔ رپورٹس، فیس اور والدین کی رسائی ساتھ منتقل ہو گئی۔',
+      dayChanged: 'تاریخ بدل گئی — اندراج دوبارہ لوڈ کر دیا گیا۔',
+      discardChanges: 'غیر محفوظ تبدیلیاں ضائع کر کے تاریخ بدلیں؟',
+      classDay: 'کلاس کی یومیہ رپورٹ',
+      classDaySub: 'پوری کلاس، ایک دن',
+      classDayEmpty: 'اس دن کی کوئی رپورٹ ابھی نہیں۔',
+      dayBefore: 'پرسوں'
     },
     ar: {
       appName: 'مدرسة دار المعارج',
@@ -1524,7 +1540,7 @@ noStudents: 'اس کلاس میں ابھی کوئی طالب علم نہیں۔',
       save: 'حفظ التقرير',
       saveOk: 'حفظ',
       saved: 'تم حفظ التقرير',
-      locked: 'التقارير الأقدم من أمس مقفلة. الناظم فقط يمكنه تغييرها.',
+      locked: 'التقارير الأقدم من أول أمس مقفلة. الناظم فقط يمكنه تغييرها.',
       date: 'التاريخ',
       attendance: 'الحضور',
       present: 'حاضر',
@@ -1546,6 +1562,8 @@ pages: 'صفحات',
       today: 'اليوم',
       yesterday: 'أمس',
       month: 'الشهر',
+      year: 'السنة',
+      feeNotOpen: 'يُفتح تسجيل رسوم هذا العام مقدما في يناير.',
 historyTitle: 'سجل التقارير',
       noReports: 'لا توجد تقارير لهذا الشهر.',
       progressChart: 'التقدم — صفحات كل يوم',
@@ -1819,7 +1837,13 @@ trash: 'الأرشيف',
       test: 'اختبار',
       testSub: 'أدى اختباراً اليوم',
       transferConfirm: 'نقل هذا الطالب إلى صف آخر؟ التقارير اليومية والرسوم ووصول ولي الأمر تنتقل معه. يرجى مراجعة المسار والفترة والفئة بعد ذلك.',
-      transferDone: 'تم نقل الطالب. انتقلت السجلات والرسوم ووصول ولي الأمر معه.'
+      transferDone: 'تم نقل الطالب. انتقلت السجلات والرسوم ووصول ولي الأمر معه.',
+      dayChanged: 'تغيّر التاريخ — أُعيد تحميل الإدخال.',
+      discardChanges: 'تجاهل التغييرات غير المحفوظة والتبديل إلى تاريخ آخر؟',
+      classDay: 'تقرير الفصل اليومي',
+      classDaySub: 'الفصل كاملاً في يوم واحد',
+      classDayEmpty: 'لا توجد تقارير لهذا اليوم بعد.',
+      dayBefore: 'أول أمس'
     }
   };
 
@@ -2964,6 +2988,7 @@ const DB = (function () {
       else if (seg[0] === 'attendance' && seg[1]) await renderAttendance(session, seg[1]);
       else if (seg[0] === 'attendance-class') await renderClassAttendance(session);
       else if (seg[0] === 'quick') await renderQuickEntry(session);
+      else if (seg[0] === 'classday') await renderClassDay(session);
       else if (seg[0] === 'progress' && seg[1]) await renderClassProgress(session, seg[1]);
       else if (seg[0] === 'trash') await renderTrash(session);
       else if (seg[0] === 'huffaz') await renderHuffaz(session);
@@ -2988,6 +3013,19 @@ const DB = (function () {
     suppressRecord = false;
     route();
   });
+
+  /* quick-entry day guard: a PWA left open overnight still shows yesterday —
+     snap it to the new day as soon as the app becomes visible again */
+  function qeDayRolled() {
+    try {
+      if (parseHash().seg[0] !== 'quick' || !qeRenderDay) return false;
+      return todayDs() !== qeRenderDay;
+    } catch (e) { return false; }
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && qeDayRolled()) route();
+  });
+  window.addEventListener('focus', function () { if (qeDayRolled()) route(); });
 
   /* ---------- LOGIN ---------- */
   async function renderLogin() {
@@ -3667,6 +3705,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           '<a class="btn btn-blue btn-block" href="#/attendance-class">📅 ' + t('attendance') + '</a>' +
           '<a class="btn btn-gold btn-block" href="#/fees">💰 ' + t('qariFees') + '</a>' +
           '<a class="btn btn-ghost btn-block" href="#/quick">⚡ ' + t('quickEntry') + '</a>' +
+          '<a class="btn btn-ghost btn-block" href="#/classday">🗓 ' + t('classDay') + '</a>' +
           '<div class="dash-sub-actions">' +
           (DB.installHint ?
             '<button class="btn btn-ghost btn-sm" data-action="install-app">📲 ' + t('parentInstallApp') + '</button>' : '') +
@@ -3704,6 +3743,11 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         '</div>' +
       '</main>';
   }
+
+  /* quick-entry day guard: which date was rendered, on which device-day */
+  let qeDs = null, qeRenderDay = null, qeDirty = false;
+  /* principal fees: last viewable month, so year-switching restores it */
+  let lastFeeYm = null;
 
   /* ---------- STUDENT FORM ---------- */
   let draft = null;
@@ -3823,8 +3867,8 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     if (!draft || draft.sid !== sid || draft.ds !== ds) draft = buildDraft(sid, ds, existing);
     const rep = draft;
     const today = todayDs();
-    const yest = yesterdayDs();
-    const locked = ds < yest;
+    const minDs = DB.addDays(today, -2);
+    const locked = ds < minDs;
 
     /* which fields a student of this track gets */
     const isQaida = track === 'qaida';
@@ -3849,7 +3893,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         '<div class="card" style="margin-top:14px">' +
           '<div class="field">' +
             '<label for="f-date">' + t('date') + '</label>' +
-            '<input type="date" id="f-date" data-change="f-date" value="' + ds + '" max="' + today + '" min="' + yest + '"' + (locked ? ' disabled' : '') + '>' +
+            '<input type="date" id="f-date" data-change="f-date" value="' + ds + '" max="' + today + '" min="' + minDs + '"' + (locked ? ' disabled' : '') + '>' +
           '</div>' +
           '<div class="section-title" style="margin-top:6px">' + t('attendance') + '</div>' +
           '<div class="seg">' +
@@ -4543,6 +4587,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center" class="no-print">' +
           '<button class="btn btn-primary btn-sm" data-action="add-student">+ ' + t('addStudent') + '</button>' +
           '<a class="btn btn-ghost btn-sm" href="#/progress/' + cid + '">📈 ' + t('classProgress') + '</a>' +
+          '<a class="btn btn-ghost btn-sm" href="#/classday?cid=' + cid + '">🗓 ' + t('classDay') + '</a>' +
           exportGroup([
             { action: 'export-excel-class', label: '⬇ ' + t('exportExcel') },
             { action: 'export-pdf-class', label: '⬇ ' + t('exportPdf') }
@@ -4947,10 +4992,23 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     if (session.role !== 'principal') { redirect('dashboard'); return; }
     const classes = await DB.getClasses();
     const fees = await DB.getAllFees();
-    const months = feeMonths(12);
+    const nowY = new Date().getFullYear();
+    const yearOpts = [];
+    for (let yy = 2026; yy <= nowY + 1; yy++) yearOpts.push(yy);
     const { q } = parseHash();
     const sel = safeYm(q);
-    const ym = ymOf(sel.y, sel.m);
+    let year = sel.y;
+    if (year < 2026) year = 2026;
+    if (year > nowY + 1) year = nowY + 1;
+    /* future years open only once they start: selecting one now shows a note */
+    const months = [];
+    if (year <= nowY) { for (let m = 1; m <= 12; m++) months.push({ y: year, m: m }); }
+    let ym = ymOf(sel.y, sel.m);
+    if (year !== sel.y || !months.some(function (mo) { return mo.m === sel.m; })) {
+      ym = months.length ? ymOf(year, months[months.length - 1].m) : ymOf(year, 1);
+    }
+    const selM = parseInt(ym.split('-')[1], 10);
+    if (months.length) lastFeeYm = ym;
     let cid = (q && q.cid) || (classes[0] ? classes[0].id : '');
     const students = cid ? await DB.getStudents(cid) : [];
 
@@ -4965,25 +5023,33 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           ]) +
           importButton() +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">' +
-          '<div class="field"><label>' + t('classes') + '</label>' +
-            '<select id="f-class" data-change="f-class">' +
-              classes.map(function (c) {
-                return '<option value="' + c.id + '"' + (c.id === cid ? ' selected' : '') + '>' + nameDisplay(c.name) + '</option>';
+        '<div class="field" style="margin-top:12px"><label>' + t('classes') + '</label>' +
+          '<select id="f-class" data-change="f-class">' +
+            classes.map(function (c) {
+              return '<option value="' + c.id + '"' + (c.id === cid ? ' selected' : '') + '>' + nameDisplay(c.name) + '</option>';
+            }).join('') +
+          '</select></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">' +
+          '<div class="field"><label>' + t('year') + '</label>' +
+            '<select id="f-year" data-change="f-year">' +
+              yearOpts.map(function (yy) {
+                return '<option value="' + yy + '"' + (yy === year ? ' selected' : '') + '>' + num(yy) + '</option>';
               }).join('') +
             '</select></div>' +
           '<div class="field"><label>' + t('month') + '</label>' +
-            '<select id="f-month" data-change="f-month">' +
+            '<select id="f-month" data-change="f-month"' + (months.length ? '' : ' disabled') + '>' +
               months.map(function (mo) {
                 return '<option value="' + ymOf(mo.y, mo.m) + '"' + (mo.y === sel.y && mo.m === sel.m ? ' selected' : '') + '>' + monthLabel(mo.y, mo.m) + '</option>';
               }).join('') +
             '</select></div>' +
         '</div>' +
         '<div class="section-title">' + t('students') + '</div>' +
-        (students.length === 0 ?
+        (months.length === 0 ?
+          '<div class="empty-note">' + t('feeNotOpen') + '</div>' :
+          students.length === 0 ?
           '<div class="empty-note">' + t('noStudents') + '</div>' :
           '<div class="tbl-wrap"><table class="tbl">' +
-            '<thead><tr><th>' + t('student') + '</th><th>' + t('feeAmount') + '</th><th>' + monthLabel(sel.y, sel.m) + '</th></tr></thead>' +
+            '<thead><tr><th>' + t('student') + '</th><th>' + t('feeAmount') + '</th><th>' + monthLabel(year, selM) + '</th></tr></thead>' +
             '<tbody>' +
               students.map(function (s) {
                 const f = fees[s.id] || {};
@@ -5009,6 +5075,10 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     };
     changeActions['f-month'] = function (el) {
       nav('pfees?cid=' + cid + '&ym=' + el.value);
+    };
+    changeActions['f-year'] = function (el) {
+      const mm = lastFeeYm ? lastFeeYm.split('-')[1] : String(selM).padStart(2, '0');
+      nav('pfees?cid=' + cid + '&ym=' + el.value + '-' + (mm.length === 2 ? mm : '0' + mm));
     };
     viewActions['p-fee'] = function (btn) {
       const tr = btn.closest('tr');
@@ -5516,7 +5586,12 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
     if (!cls) { redirect('dashboard'); return; }
     const students = await DB.getStudents(session.classId);
     const today = todayDs();
-    const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), today);
+    const minDs = DB.addDays(today, -2);
+    const qh = parseHash().q || {};
+    let selDs = (qh.date && typeof qh.date === 'string') ? qh.date : today;
+    if (selDs < minDs || selDs > today) selDs = today;
+    const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), selDs);
+    qeDs = selDs; qeRenderDay = today; qeDirty = false;
     const trackOf = function (s) { return s.type || cls.type || 'hifz'; };
     const savedIds = new Set(students.filter(function (s) { return dayReps[s.id]; }).map(function (s) { return s.id; }));
     const state = {};
@@ -5618,7 +5693,13 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       '<main class="app-main">' +
         '<span class="eyebrow">⚡ ' + t('quickEntry') + '</span>' +
         '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(cls.name) + '</h1>' +
-        '<div class="pill" style="margin-top:8px">' + t('date') + ' ' + esc(today) + '</div>' +
+        '<div class="field" style="margin-top:8px;max-width:300px"><label for="qe-date">' + t('date') + '</label>' +
+          '<select id="qe-date" data-change="qe-date">' +
+          [today, DB.addDays(today, -1), minDs].map(function (ds) {
+            const lbl = ds === today ? t('today') : (ds === DB.addDays(today, -1) ? t('yesterday') : t('dayBefore'));
+            return '<option value="' + ds + '"' + (ds === selDs ? ' selected' : '') + '>' + lbl + ' · ' + ds + '</option>';
+          }).join('') +
+          '</select></div>' +
         '<div class="card" style="margin-top:14px;border-color:var(--gold);background:var(--gold-soft)">' + t('quickEntrySub') + '</div>' +
         quickEntryGroups() +
         (hasShiftStudents ? '' : '<button class="btn btn-primary btn-block" data-action="qe-save-all" style="margin-top:14px">💾 ' + t('saveAll') + '</button>') +
@@ -5664,12 +5745,17 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
                '<div class="shift-header" data-action="toggle-shift" data-shift="un" style="cursor:pointer"><span class="shift-arrow">' + (collapsedShifts['un'] ? '▸' : '▾') + '</span> — ' + t('shiftNone') + ' <span class="badge">' + unassigned.length + ' ' + t('shiftStudents') + '</span>' +
                ' <span class="shift-done-badge">' + shiftStatusBadge('un') + '</span></div>' +
                '<div class="shift-body" id="shift-body-un"' + (collapsedShifts['un'] ? ' style="display:none"' : '') + '>' +
-               unassigned.map(cardFor).join('') +
-               shiftSaveBtn('un', t('shiftNone')) +
-               '</div></div>';
+                unassigned.map(cardFor).join('') +
+                shiftSaveBtn('un', t('shiftNone')) +
+                '</div></div>';
       }
       return out;
     }
+
+    changeActions['qe-date'] = function (el) {
+      if (qeDirty && !window.confirm(t('discardChanges'))) { el.value = qeDs || selDs; return; }
+      nav('quick?date=' + el.value);
+    };
 
     viewActions['toggle-shift'] = function (btn) {
       const key = btn.getAttribute('data-shift');
@@ -5710,6 +5796,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           const el = document.getElementById(id);
           if (el) {
             el.addEventListener('input', function () {
+              qeDirty = true;
               if (id.indexOf('comment') > -1) state[s.id].comment = el.value;
               else if (id.indexOf('mzpara') > -1) state[s.id].manzilPara = parseInt(el.value, 10) || 0;
               else if (id.indexOf('mzsel') > -1) state[s.id].manzil = el.value;
@@ -5719,6 +5806,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
               else state[s.id][id.indexOf('pages') > -1 ? 'pages' : 'lines'] = parseInt(el.value, 10) || 0;
             });
             el.addEventListener('change', function () {
+              qeDirty = true;
               if (id.indexOf('comment') > -1) state[s.id].comment = el.value;
               else if (id.indexOf('mzpara') > -1) state[s.id].manzilPara = parseInt(el.value, 10) || 0;
               else if (id.indexOf('mzsel') > -1) state[s.id].manzil = el.value;
@@ -5730,25 +5818,27 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           }
         });
         const sabqi = document.getElementById('qe-sabqi-' + s.id);
-        if (sabqi) sabqi.addEventListener('change', function () { state[s.id].sabqiDone = sabqi.checked; });
+        if (sabqi) sabqi.addEventListener('change', function () { qeDirty = true; state[s.id].sabqiDone = sabqi.checked; });
         const manzil = document.getElementById('qe-manzil-' + s.id);
         if (manzil) manzil.addEventListener('change', function () {
+          qeDirty = true;
           state[s.id].manzilDone = manzil.checked;
           const tri = document.getElementById('qe-trim-' + s.id);
           if (tri) tri.style.display = manzil.checked ? '' : 'none';
         });
         const rsn = document.getElementById('qe-reason-' + s.id);
-        if (rsn) rsn.addEventListener('change', function () { state[s.id].reason = rsn.checked; });
+        if (rsn) rsn.addEventListener('change', function () { qeDirty = true; state[s.id].reason = rsn.checked; });
         const qlate = document.getElementById('qe-late-' + s.id);
-        if (qlate) qlate.addEventListener('change', function () { state[s.id].late = qlate.checked; });
+        if (qlate) qlate.addEventListener('change', function () { qeDirty = true; state[s.id].late = qlate.checked; });
         const qtest = document.getElementById('qe-test-' + s.id);
-        if (qtest) qtest.addEventListener('change', function () { state[s.id].testDone = qtest.checked; });
+        if (qtest) qtest.addEventListener('change', function () { qeDirty = true; state[s.id].testDone = qtest.checked; });
       });
     }
     wireWidgets();
 
     viewActions['qe-present'] = function (btn) {
       const sid = btn.getAttribute('data-sid');
+      qeDirty = true;
       state[sid].present = btn.getAttribute('data-v') === '1';
       const seg = btn.closest('.seg');
       if (seg) {
@@ -5765,6 +5855,11 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
        the qari on the page so the next shift can be entered afterwards. */
     function saveStudentList(list, stay, okMsg) {
       const today2 = todayDs();
+      /* day guard: the device-day rolled over while this screen sat open —
+         re-render instead of stamping the new day onto stale state */
+      if (today2 !== qeRenderDay) { toast(t('dayChanged')); route(); return; }
+      const floor = DB.addDays(today2, -2);
+      if (selDs < floor || selDs > today2) { toast(t('dayChanged')); nav('quick'); return; }
       for (const s of list) {
         const chk = state[s.id];
         const trk = trackOf(s);
@@ -5793,7 +5888,7 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
           late: st2.present && !manzilIsTri && !!st2.late,
           testDone: st2.present && manzilIsTri && !!st2.testDone
         };
-        return DB.saveReport(s.id, today2, rep);
+        return DB.saveReport(s.id, selDs, rep);
       });
       Promise.all(jobs).then(function (results) {
         const failed = results.filter(function (r) { return r && r.ok === false; }).length;
@@ -5817,6 +5912,111 @@ const manzilIsTri = parentTrack(st, classes) === 'hifz';
       saveStudentList(grp, true, t('savedAll') + ' — ' + label);
     };
   }
+
+  /* ---------- CLASS DAY REPORT (qari: own class, principal: picker) ---------- */
+  async function renderClassDay(session) {
+    const t = I18N.t;
+    if (session.role !== 'qari' && session.role !== 'principal') { redirect('dashboard'); return; }
+    const { q } = parseHash();
+    let cid = session.role === 'principal' ? ((q && q.cid) || '') : session.classId;
+    const classes = session.role === 'principal' ? await DB.getClasses() : [];
+    if (session.role === 'principal' && !cid && classes[0]) cid = classes[0].id;
+    const cls = cid ? await DB.getClass(cid) : null;
+    if (!cls) { redirect(session.role === 'principal' ? 'principal' : 'dashboard'); return; }
+    const students = await DB.getStudents(cid);
+    const today = todayDs();
+    let selDs = (q && q.date && typeof q.date === 'string') ? q.date : DB.addDays(today, -1);
+    if (selDs > today) selDs = today;
+    const dayReps = await DB.getDayReports(students.map(function (s) { return s.id; }), selDs);
+    const prev = DB.addDays(selDs, -1), next = DB.addDays(selDs, 1);
+    const base = '#/classday?' + (session.role === 'principal' ? 'cid=' + cid + '&' : '');
+
+    let present = 0, absent = 0, missing = 0;
+    students.forEach(function (s) {
+      const r = dayReps[s.id];
+      if (!r) missing++;
+      else if (r.present) present++;
+      else absent++;
+    });
+
+    const sumFor = function (s) {
+      const r = dayReps[s.id];
+      if (!r) return '<span class="badge badge-pending">–</span>';
+      const track = s.type || cls.type || 'hifz';
+      const bits = [];
+      bits.push(r.present
+        ? '<span class="badge badge-ok">' + t('present') + '</span>'
+        : '<span class="badge badge-miss">' + t('absent') + '</span>');
+      if (r.present) {
+        if (track === 'qaida') {
+          if (r.pages) bits.push(t('lessonNo') + ' ' + num(r.pages));
+          if (r.lines) bits.push(num(r.lines) + ' ' + t('lines'));
+        } else {
+          if (r.pages) bits.push(num(r.pages) + ' ' + t('pages'));
+          if (r.lines) bits.push(num(r.lines) + ' ' + t('lines'));
+        }
+        if (r.sabqiDone) bits.push('✓ ' + t('sabqi'));
+        if (r.manzilDone) {
+          if (track === 'hifz') bits.push('✓ ' + t('manzil') + ' ' + t('para') + ' ' + num(r.manzilPara) + ' × ' + esc(manzilDisplay(r.manzil)));
+          else bits.push('✓ ' + t('manzil') + ' ' + (r.manzilPages ? num(r.manzilPages) + ' ' + t('pages') : '') + ' ' + (r.manzilLines ? num(r.manzilLines) + ' ' + t('lines') : ''));
+        }
+        if (r.testDone) bits.push('✓ ' + t('test'));
+        if (r.late) bits.push('⚠ ' + t('late'));
+      } else if (r.reason) {
+        bits.push(t('reason'));
+      }
+      return bits.join(' · ') + (r.comment ? ' <span class="badge" title="' + esc(r.comment) + '">💬</span>' : '');
+    };
+
+    app.innerHTML = '' +
+      topbar(true) +
+      '<main class="app-main">' +
+        '<span class="eyebrow">🗓 ' + t('classDay') + '</span>' +
+        '<h1 class="h-display" style="font-size:1.3rem">' + nameDisplay(cls.name) + '</h1>' +
+        '<p style="color:var(--ink-soft);font-size:.88rem;margin-top:6px">' + t('classDaySub') + '</p>' +
+        (session.role === 'principal' ?
+          '<div class="field" style="margin-top:10px"><label>' + t('classes') + '</label>' +
+            '<select id="f-class" data-change="f-class">' +
+              classes.map(function (c) {
+                return '<option value="' + c.id + '"' + (c.id === cid ? ' selected' : '') + '>' + nameDisplay(c.name) + '</option>';
+              }).join('') +
+            '</select></div>' : '') +
+        '<div class="field" style="margin-top:10px"><label>' + t('date') + '</label>' +
+          '<div style="display:flex;gap:8px;align-items:center">' +
+            '<a class="btn btn-sm btn-ghost" href="' + base + 'date=' + prev + '">‹</a>' +
+            '<input type="date" id="f-cday" data-change="f-cday" value="' + selDs + '" max="' + today + '" style="flex:1">' +
+            (next <= today ? '<a class="btn btn-sm btn-ghost" href="' + base + 'date=' + next + '">›</a>' : '') +
+          '</div></div>' +
+        '<div class="stat-row">' +
+          '<div class="stat"><div class="n">' + num(present) + '</div><div class="l">' + t('present') + '</div></div>' +
+          '<div class="stat"><div class="n">' + num(absent) + '</div><div class="l">' + t('absent') + '</div></div>' +
+          '<div class="stat"><div class="n">' + num(missing) + '</div><div class="l">' + t('noMark') + '</div></div>' +
+        '</div>' +
+        '<div class="section-title">' + t('students') + '</div>' +
+        (students.length === 0 ? '<div class="empty-note">' + t('noStudents') + '</div>' :
+          '<div class="tbl-wrap"><table class="tbl">' +
+          '<thead><tr><th>' + t('student') + '</th><th>' + t('status') + '</th></tr></thead>' +
+          '<tbody>' +
+            students.map(function (s) {
+              const ty = s.type || cls.type || 'hifz';
+              return (
+                '<tr>' +
+                  '<td><div style="font-weight:600">' + nameDisplay(s.name) + '</div>' +
+                  '<div class="meta">' + (ty === 'qaida' ? t('lessonNo') + ' ' + num(s.para) : t('para') + ' ' + num(s.para) + ' · ' + t('page') + ' ' + num(s.currentPage || '—')) + '</div></td>' +
+                  '<td>' + sumFor(s) + '</td>' +
+                '</tr>'
+              );
+            }).join('') +
+          '</tbody></table></div>') +
+      '</main>';
+
+    changeActions['f-class'] = function (el) {
+      nav('classday?cid=' + el.value + '&date=' + selDs);
+    };
+    changeActions['f-cday'] = function (el) {
+      if (el.value) nav(base + 'date=' + el.value);
+    };
+  };
 
   /* ---------- CLASS PROGRESS (principal) ---------- */
   async function renderClassProgress(session, cid) {
